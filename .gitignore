@@ -1,0 +1,12 @@
+*.pyc
+/data
+/build
+notebooks/.ipynb_checkpoints/
+mlruns/
+outputs/
+.vscode/
+*egg-info/
+/build
+/dist
+.coverage
+.ipynb_checkpoints
