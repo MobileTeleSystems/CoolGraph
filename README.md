@@ -9,7 +9,7 @@ Moreover, your experiments can be saved in Mlflow and fully tracked.
 
 All you need is **graph-structured data**.
 
-# Main advantages of CoolGraph:
+## Main advantages of CoolGraph:
   * **Quick start with 2 lines of code**
   * **Good quality of base models, comparable to state of the art**
   * **Heterogeneous graph support**
@@ -18,11 +18,11 @@ All you need is **graph-structured data**.
   * **User could define the targets count and target weights in the loss function**
   * **Etimating batch size and neighbourhood sampling sizes for the first and second hop via graph metrics calculation**
 
-# Documentation
+## Documentation
 
 For more details, look at tutorials in folder Notebooks.
 
-# Install with creating conda
+## Install with creating conda
 
 ```
 conda deactivate
@@ -30,7 +30,7 @@ conda create -n cool_graph_env2_py38 python=3.8 cudatoolkit=11.3.1 pytorch=1.12.
 pip install cool-graph
 ```
 
-# Install with creating conda from yml file
+## Install with creating conda from yml file
 
 ```
 conda deactivate
@@ -44,14 +44,14 @@ pip install cool-graph
 You can use CoolGraph in Google Colab without installing the conda, but make sure that the default colab environment matches the required versions for the library. 
 [Google Colab](https://colab.research.google.com/drive/1FapJyDXJyYJtBo1fmyBLcrH6DSqMcztz#updateTitle=true&folderId=1HiTMhdLL0HQqQpja7uaeRJJROcysXk2p&scrollTo=SB2W-lYhDSUF)
 
-# Usage
+## Usage
 
 Look at page notebook in [Examples in notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/CoolGraph_usage_examples.ipynb)
 
 or you can see the example with open fraud dataset from Yelp at [fraud daset notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/YelpChi_dataset_with_edge_attr.ipynb)
 
 
-# Benchmark
+## Benchmark
 
 Comming soon
 
