@@ -28,8 +28,6 @@ For more details, look at tutorials in folder Notebooks.
 `conda activate cool_graph_env2_py38`  <br>
 `pip install cool-graph`
 
-https://colab.research.google.com/drive/1FapJyDXJyYJtBo1fmyBLcrH6DSqMcztz#scrollTo=B7b-SnugCeBB
-
 
 ## Install CoolGraph without creating conda
 
