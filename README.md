@@ -159,7 +159,7 @@ After that commit -> push -> PR.
  
 * [Diana Pavlikova](https://github.com/dapavlik)
 * [Sergey Kuliev](https://github.com/kuliev-sd)
-* [Nikit Zelinskiy](https://github.com/nikita-ds)
+* [Nikita Zelinskiy](https://github.com/nikita-ds)
 
 
 ## License 
