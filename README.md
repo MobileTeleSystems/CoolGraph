@@ -46,9 +46,9 @@ You can use CoolGraph in Google Colab without installing the conda, but make sur
 
 ## Usage
 
-Look at page notebook in [Examples in notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/CoolGraph_usage_examples.ipynb)
+Look at page notebook in [Run examples](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/CoolGraph_usage_examples.ipynb)
 
-or you can see the example with open fraud dataset from Yelp at [fraud daset notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/YelpChi_dataset_with_edge_attr.ipynb)
+or you can see the example with open fraud dataset from Yelp at [fraud dataset notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/YelpChi_dataset_with_edge_attr.ipynb)
 
 
 ## Benchmark
