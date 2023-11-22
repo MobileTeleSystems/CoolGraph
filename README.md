@@ -159,6 +159,7 @@ After that commit -> push -> PR.
  
 * [Diana Pavlikova](https://github.com/dapavlik)
 * [Sergey Kuliev](https://github.com/kuliev-sd)
+* [Igor Inozemtsev](https://github.com/inozemtsev)
 * [Nikita Zelinskiy](https://github.com/nikita-ds)
 
 
