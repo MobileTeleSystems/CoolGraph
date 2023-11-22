@@ -1,0 +1,3 @@
+- 'accuracy'
+- 'cross_entropy'
+- 'f1_weighted'

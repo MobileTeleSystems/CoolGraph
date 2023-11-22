@@ -1,0 +1,40 @@
+device: cuda:0
+targets:
+  - label_3
+  - label_4
+  - label_5
+  - label_6
+num_neighbors:
+  - -1
+  - -1
+batch_size: 250
+initial_lr: 0.0023
+weight_decay: 0.0001
+n_epochs: 10
+eval_freq: 5
+main_metric_name: Auc-total
+scheduler_type: MultiStepLR
+scheduler_params:
+  milestones:
+    - 10
+    - 20
+    - 35
+    - 50
+    - 70
+    - 90
+    - 105
+  gamma: 0.25
+loss:
+  name: CrossEntropyLoss
+  label_smoothing: False
+  target_weights:
+    label_3: 1
+    label_4: 1
+    label_5: 1
+    label_6: 1 
+  group_weights:
+    - 0.8
+    - 1
+  fill_value: -100
+    
+

@@ -1,0 +1,7 @@
+# this config is using for CLI
+defaults:
+  - model_params: nnconv
+  - data: default
+  - training: default
+  - logging: default
+  - metrics: default

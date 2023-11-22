@@ -1,0 +1,6 @@
+# this config for runner in notebook (no attrs on edges)
+defaults:
+  - model_params: graphconv
+  - training: in_memory_data
+  - logging: in_memory_data
+  - metrics: in_memory_data

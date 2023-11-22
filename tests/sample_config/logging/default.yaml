@@ -1,0 +1,3 @@
+use_mlflow: True
+mlflow_experiment_name: coolgraph_test
+checkpoint_dir: ./checkpoints

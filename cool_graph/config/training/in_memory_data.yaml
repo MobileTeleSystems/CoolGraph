@@ -1,0 +1,45 @@
+# this config is for GraphConv
+# using device
+# https://pytorch.org/docs/stable/notes/cuda.html
+device: cuda:0
+# name of target on data
+targets:
+  - y 
+# Number of neighbors are sampled for each node in each iteration (if set -1, -1 - sampling all)
+num_neighbors:
+  - 25
+  - 15
+# Numbers of samples per batch to load.
+batch_size: 250
+# learning rate 
+initial_lr: 0.0023
+# weight decay (L2 penalty). Using in optimization
+weight_decay: 0.0001
+# num of epochs per training 
+n_epochs: 21
+# given stages of the training procedure (grouping epochs)
+eval_freq: 5
+# Decays the learning rate of each parameter group by gamma once the number of epoch reaches one of the milestones.
+# https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.MultiStepLR.html
+scheduler_type: MultiStepLR
+scheduler_params:
+  milestones:
+    - 10
+    - 20
+    - 35
+    - 50
+    - 70
+    - 90
+    - 105
+  gamma: 0.25
+# This criterion computes the cross entropy loss between input logits and target
+loss:
+  name: CrossEntropyLoss
+  label_smoothing: False
+# weights for targets 
+  target_weights:
+    y: 1
+# weights for groups in nodes 
+  group_weights:
+    - 1
+  fill_value: -100

@@ -1,0 +1,30 @@
+conv_type: GraphConv # type of model to use
+# activation function, you can choose between: elu, relu, prelu, leakyrelu, gelu
+# https://pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity
+activation: leakyrelu 
+# dropout rate in linear layer
+lin_prep_dropout_rate: 0.4
+# count of linear layers 
+lin_prep_len: 1
+# size of linear layer (in)
+lin_prep_size_common: 512
+# size of linear layer (out)
+lin_prep_sizes: [256]
+# flag for normalization weights on linaer layers
+lin_prep_weight_norm_flag: true
+# flag for normalization weights on conv layers
+graph_conv_weight_norm_flag: true    
+# number of hops where neighbours will be aggregate 
+n_hops: 2    
+# aggregation on conv1 (SaGe method) 
+conv1_aggrs:
+  mean: 128
+  max: 64
+  add: 32
+conv1_dropout_rate: 0.2
+# aggregation on conv2 (SaGe method) 
+conv2_aggrs:
+  mean: 64
+  max: 32
+  add: 16
+conv2_dropout_rate: 0.2 

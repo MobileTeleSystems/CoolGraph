@@ -1,0 +1,19 @@
+conv_type: GraphConv
+activation: leakyrelu
+lin_prep_dropout_rate: 0.4
+lin_prep_len: 1
+lin_prep_size_common: 512
+lin_prep_sizes: [256]
+lin_prep_weight_norm_flag: true
+graph_conv_weight_norm_flag: true    
+n_hops: 2    
+conv1_aggrs:
+  mean: 128
+  max: 64
+  add: 32
+conv1_dropout_rate: 0.2
+conv2_aggrs:
+  mean: 64
+  max: 32
+  add: 16
+conv2_dropout_rate: 0.2

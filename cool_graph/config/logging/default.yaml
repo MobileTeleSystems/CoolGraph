@@ -1,0 +1,14 @@
+# if for use_mlflow set True - please set mflow params:
+# mlflow:
+#     MLFLOW_TRACKING_INSECURE_TLS: 
+#     MLFLOW_S3_IGNORE_TLS: 
+#     MLFLOW_S3_ENDPOINT_URL: 
+#     AWS_ACCESS_KEY_ID:
+#     AWS_SECRET_ACCESS_KEY: 
+#     MLFLOW_TRACKING_USERNAME: 
+#     MLFLOW_TRACKING_PASSWORD:
+#     MLFLOW_HTTP_REQUEST_MAX_RETRIES: 
+#     set_tracking_uri: 
+use_mlflow: False
+mlflow_experiment_name: coolgraph
+checkpoint_dir: ./checkpoints

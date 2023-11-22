@@ -1,0 +1,24 @@
+conv_type: NNConv
+activation: elu
+lin_prep_dropout_rate: 0.3233767075189213
+lin_prep_len: 1
+lin_prep_size_common: 300
+lin_prep_sizes: [150]
+lin_prep_weight_norm_flag: false
+n_hops: 2
+conv1_aggrs:
+  mean: 24    
+  max: 16    
+  add: 16
+conv1_dropout_rate: 0.2
+conv2_aggrs:
+  mean: 24   
+  max: 8    
+  add: 8
+conv2_dropout_rate: 0.13670888777333873
+edge_attr_repr_dropout_rate: 0.05
+edge_attr_repr_len: 2
+edge_attr_repr_sizes: [9, 2]
+edge_attr_repr_weight_norm_flag: false
+edge_attr_repr_last_dropout_rate: 0.2704726808101262    
+edge_attr_repr_last_activation: sigmoid    

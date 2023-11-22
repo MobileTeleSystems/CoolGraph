@@ -1,0 +1,39 @@
+conv_type: NNConv # type of model to use
+# activation function, you can choose between: elu, relu, prelu, leakyrelu, gelu
+# https://pytorch.org/docs/stable/nn.html#non-linear-activations-weighted-sum-nonlinearity
+activation: elu
+# dropout rate in linear layer
+lin_prep_dropout_rate: 0.3233767075189213
+# count of linear layers 
+lin_prep_len: 1
+# size of linear layer (in)
+lin_prep_size_common: 300
+# size of linear layer (out)
+lin_prep_sizes: [150]
+# flag for normalization weights on linear layers
+lin_prep_weight_norm_flag: false
+# number of hops where neighbours will be aggregate 
+n_hops: 2
+# aggregation on conv1 (SaGe method) 
+conv1_aggrs:
+  mean: 24    
+  max: 16    
+  add: 16
+conv1_dropout_rate: 0.2
+# aggregation on conv2 (SaGe method) 
+conv2_aggrs:
+  mean: 24   
+  max: 8    
+  add: 8
+conv2_dropout_rate: 0.13670888777333873
+# dropout for layer of edge attributes
+edge_attr_repr_dropout_rate: 0.05
+# count of layers with edge attributes
+edge_attr_repr_len: 2
+# size of linear layer (out) (edges)
+edge_attr_repr_sizes: [9, 2]
+edge_attr_repr_weight_norm_flag: false
+# dropout rate for last layer (edges)
+edge_attr_repr_last_dropout_rate: 0.2704726808101262   
+# activation function for last layer (edges) 
+edge_attr_repr_last_activation: sigmoid    
