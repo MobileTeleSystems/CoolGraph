@@ -50,7 +50,7 @@ Look at page notebook in [Run examples](https://github.com/MobileTeleSystems/Coo
 
 or you can see the example with open fraud dataset from Yelp at [fraud dataset notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/YelpChi_dataset_with_edge_attr.ipynb)
 
-
+Here is a graph with 2 groups in nodes [Google Drive](https://drive.google.com/file/d/1cjuwv5-oJRvDbNZ--H2woYShzU3nUzpn/view?usp=sharing)
 ## Benchmark
 
 Comming soon
@@ -105,10 +105,28 @@ result = runner.run()
 ### Runner with Optuna
 You can run HypeRunner for the best GNN architecture search
 ```python
+# Load Dataset
+from torch_geometric import datasets
+data = datasets.Amazon(root='./data/Amazon', name='Computers').data
+
+from cool_graph.runners import HypeRunner
+
 runner = HypeRunner(data)
 result = runner.optimize_run()
 ```
 For more information look at examples
+
+### Runner for heterogeneous graph
+Graph example from Google Drive 
+```python
+import torch
+data = torch.load("sample_of_graph")
+
+from cool_graph.runners import MultiRunner
+
+runner = MultiRunner(data)
+result = runner.run()
+```
 
 ## Library Structure
 
