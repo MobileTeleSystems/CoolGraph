@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -8,18 +8,22 @@ from tqdm import tqdm
 
 
 def create_loaders(
-    node_features: torch.FloatTensor,
-    edge_features: torch.FloatTensor,
-    edge_index: torch.LongTensor,
-    read_edge_attr: bool,
-    num_neighbors: List[int],
-    batch_size: int,
-    group_mask: torch.LongTensor,
-    groups_features: Dict[int, List[int]],
-    groups_names: Dict[int, str],
-    label_mask: torch.BoolTensor,
-    index: torch.LongTensor,
-    targets: Dict[str, torch.Tensor],
+    data: Data = None,
+    node_features: torch.FloatTensor = None,
+    edge_features: torch.FloatTensor = None,
+    edge_index: torch.LongTensor = None,
+    read_edge_attr: bool = None,
+    num_neighbors: List[int] = None,
+    batch_size: int = None,
+    group_mask: torch.LongTensor = None,
+    groups_features: Dict[int, List[int]] = None,
+    groups_names: Dict[int, str] = None,
+    label_mask: torch.BoolTensor = None,
+    index: torch.LongTensor = None,
+    targets: Dict[str, torch.Tensor] = None,
+    input_nodes: Optional[List] = None,
+    node_feature_indices: Optional[List] = None,
+    unique_groups: Optional[int] = None,
 ) -> List[torch.utils.data.DataLoader]:
     """
     Creating list loaders.
@@ -55,25 +59,24 @@ def create_loaders(
         raise ValueError(
             f"""Feature groups keys should be a subset of feature_groups_names"""
         )
-
-    data = Data(
-        x=node_features,
-        edge_index=edge_index,
-        edge_attr=edge_features if read_edge_attr else None,
-        group_mask=group_mask,
-        label_mask=label_mask,
-        index=index,
-        **targets,
-    )
+    if data is None:
+        data = Data(
+            x=node_features,
+            edge_index=edge_index,
+            edge_attr=edge_features if read_edge_attr else None,
+            group_mask=group_mask,
+            label_mask=label_mask,
+            index=index,
+            **targets,
+        )
+        input_nodes = torch.nonzero(label_mask)[:, 0]
 
     loader = NeighborLoader(
         data,
-        # Sample 30 neighbors for each node for 2 iterations
         num_neighbors=num_neighbors,
-        # Use a batch size of 128 for sampling training nodesb
         batch_size=batch_size,
         shuffle=True,
-        input_nodes=torch.nonzero(label_mask)[:, 0],
+        input_nodes=input_nodes,
     )
 
     list_loader = []

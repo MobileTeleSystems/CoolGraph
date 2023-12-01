@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from cool_graph.data import RawDataProcessor
 from cool_graph.data.batch import get_auto_batch_size
+from cool_graph.data.loaders import create_loaders
 from cool_graph.logging import setup_mlflow_from_config
 from cool_graph.parameter_search import (
     model_params_to_trial_params,
@@ -34,7 +35,7 @@ from cool_graph.parameter_search import (
 from cool_graph.train import Trainer
 
 
-def create_config2(config: str, overrides: List[str], path_base: str = "cfg") -> Dict:
+def create_cfg(config: str, overrides: List[str], path_base: str = "cfg") -> Dict:
     assert path_base in ("cfg", "cwd")
     core.global_hydra.GlobalHydra.instance().clear()
     if os.path.isabs(config):
@@ -57,11 +58,7 @@ class ConfigRunner:
     - make get_config --configs path_where_you_need_configs (default: new path ./configs by itself)
     """
 
-    def __init__(
-        self,
-        config: Optional[DictConfig]
-    ) -> None:
-
+    def __init__(self, config: Optional[DictConfig]) -> None:
         cfg = OmegaConf.to_container(config, resolve=True)
         self.cfg = cfg
         self.target_names = cfg["training"]["targets"]
@@ -243,7 +240,7 @@ class BaseRunner:
             train_idx (list): Indices for train data. Defaults to None.
             test_idx (list): Indices for test data. Defaults to None.
             use_edge_attr (bool): If attributes exist on edges, it can be used in training. Defaults to False.
-        
+
         """
         if config is None:
             if config_path is None:
@@ -252,7 +249,7 @@ class BaseRunner:
                 else:
                     config_path = "./config/in_memory_data.yaml"
                 config_path = os.path.join(os.path.dirname(__file__), config_path)
-            config = create_config2(
+            config = create_cfg(
                 config=config_path, overrides=overrides, path_base="cfg"
             )
         cfg = OmegaConf.to_container(config, resolve=True)
@@ -335,6 +332,7 @@ class BaseRunner:
             )
         else:
             self._batch_size = self.batch_size
+
         if (self.train_idx is None) or (self.test_idx is None):
             train_idx, test_idx = train_test_split(
                 torch.nonzero(self.data.label_mask)[:, 0],
@@ -402,11 +400,11 @@ class Runner(BaseRunner):
     train_idx (int): Indices for train data. Defaults to None.
     test_idx (int): Indices for test data. Defaults to None.
     use_edge_attr (bool): If attributes exist on edges, it can be used in training. Defaults to False.
-    
+
     Examples
     --------
     >>> from cool_graph.runners import Runner
-    >>> from torch_geometric import datasets 
+    >>> from torch_geometric import datasets
     >>> # loading amazon dataset
     >>> data = datasets.Amazon(root="./data/Amazon", name="Computers").data
     >>> runner = Runner(data)
@@ -419,10 +417,10 @@ class Runner(BaseRunner):
         'main_metric': 0.916,
         'epoch': 10}
     Also you can override params in Runner:
-    runner = Runner(data, metrics=['accuracy'], 
-    batch_size='auto', train_size=0.7, test_size=0.3, 
+    runner = Runner(data, metrics=['accuracy'],
+    batch_size='auto', train_size=0.7, test_size=0.3,
     overrides=['training.n_epochs=1'], config_path=path/to/config)
-    result = runner.run()    
+    result = runner.run()
 
     """
 
@@ -517,24 +515,24 @@ class HypeRunner(BaseRunner):
         seed  (int): The desired seed. Default to None.
         train_idx (list): List of train indices.
         test_idx (list): List of test indices.
-    
+
     Examples
     --------
     >>> from cool_graph.runners import HypeRunner
-    >>> from torch_geometric import datasets 
+    >>> from torch_geometric import datasets
     >>> # loading amazon dataset
     >>> data = datasets.Amazon(root="./data/Amazon", name="Computers").data
     >>> runner = HypeRunner(data)
     >>> result = runner.run(optimize_run)
-    Study statistics: 
+    Study statistics:
       Number of finished trials:  5
       Number of complete trials:  5
     Best trial:
       Value:  0.922
-      Params: 
-      {'conv_type': 'GraphConv', 'activation': 'leakyrelu', 'lin_prep_len': 1, 'lin_prep_dropout_rate': 0.4, 
+      Params:
+      {'conv_type': 'GraphConv', 'activation': 'leakyrelu', 'lin_prep_len': 1, 'lin_prep_dropout_rate': 0.4,
       'lin_prep_weight_norm_flag': True, 'lin_prep_size_common': 512, 'lin_prep_sizes': [256],
-      'n_hops': 2, 'conv1_aggrs': {'mean': 128, 'max': 64, 'add': 32}, 
+      'n_hops': 2, 'conv1_aggrs': {'mean': 128, 'max': 64, 'add': 32},
       'conv1_dropout_rate': 0.2, 'conv2_aggrs': {'mean': 64, 'max': 32, 'add': 16},
       'conv2_dropout_rate': 0.2, 'graph_conv_weight_norm_flag': True}
 
@@ -568,7 +566,7 @@ class HypeRunner(BaseRunner):
                 config_path = os.path.join(
                     os.path.dirname(__file__), "./config/in_memory_data.yaml"
                 )
-            config = create_config2(
+            config = create_cfg(
                 config=config_path, overrides=overrides, path_base="cfg"
             )
         self.study = optuna.study
@@ -580,7 +578,6 @@ class HypeRunner(BaseRunner):
         study_name: Optional[str] = None,
         enqueue_trial: Optional[List[Dict]] = None,
     ) -> pd.DataFrame:
-
         if not (hasattr(self, "train_loader") and hasattr(self, "test_loader")):
             self.init_loaders()
         """
@@ -703,8 +700,8 @@ class HypeRunner(BaseRunner):
                 print(dict_with_params[i])
 
         return trial_dataset
-    
-    
+
+
 class MultiRunner:
     """
     Runner for heterogeneous graph
@@ -725,6 +722,7 @@ class MultiRunner:
     test_idx (list): Indices for test data. Defaults to None.
 
     """
+
     def __init__(
         self,
         data: Data,
@@ -736,15 +734,19 @@ class MultiRunner:
         seed: Optional[int] = None,
         train_idx: Optional[List[int]] = None,
         test_idx: Optional[List[int]] = None,
-        **kwargs) -> None:
+        **kwargs,
+    ) -> None:
         if config is None:
             if config_path is None:
-                config_path = os.path.join(os.path.dirname(__file__),
-                                           "./config/full.yaml")
-            config = create_config2(config=config_path, overrides=overrides, path_base="cfg")
-        
+                config_path = os.path.join(
+                    os.path.dirname(__file__), "./config/full.yaml"
+                )
+            config = create_cfg(
+                config=config_path, overrides=overrides, path_base="cfg"
+            )
+
         cfg = OmegaConf.to_container(config, resolve=True)
-        
+
         self.cfg = cfg
         self.data = data
         self.test_size = test_size
@@ -771,15 +773,14 @@ class MultiRunner:
             pathlib.Path(cfg["logging"]["checkpoint_dir"]) / str(datetime.now())[:19]
         )
         os.makedirs(self.chkpt_dir, exist_ok=True)
-        
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 
         if self.cfg["logging"].get("use_mlflow", False):
             setup_mlflow_from_config(cfg["logging"]["mlflow"])
-    
-    def init_loaders(self) -> None:
 
+    def init_loaders(self) -> None:
         if self.batch_size == "auto":
             self._batch_size = get_auto_batch_size(
                 [len(v) for _, v in self.group_names_node_features.items()],
@@ -799,7 +800,7 @@ class MultiRunner:
             )
         else:
             self._batch_size = self.batch_size
-            
+
         if (self.train_idx is None) or (self.test_idx is None):
             train_idx, test_idx = train_test_split(
                 torch.nonzero(self.data.label_mask)[:, 0],
@@ -812,55 +813,32 @@ class MultiRunner:
             self.test_idx = test_idx
 
         unique_groups = np.unique(self.data.group_mask)
-            
-        loader_train = NeighborLoader(self.data,
-                                      num_neighbors=self.num_neighbors,
-                                      batch_size=self._batch_size,
-                                      shuffle=True, 
-                                      input_nodes=self.train_idx)
-        
-        train_list_loader = []
-            
-        for sampled_data in tqdm(loader_train, desc="Sample data"):
-            sampled_data.label_mask[sampled_data.batch_size :] = False
 
-            for group in unique_groups:
-                name = self.groups_names[group]
-                mask = sampled_data.group_mask == group
-                features = self.node_feature_indices[group]
-                setattr(sampled_data, name, sampled_data.x[mask][:, features])
-
-            del sampled_data.x
-
-            train_list_loader.append(sampled_data)
-        
-        self.train_loader = train_list_loader
-            
-        loader_test = NeighborLoader(
-            self.data,
+        self.train_loader = create_loaders(
+            data=self.data,
             num_neighbors=self.num_neighbors,
-            batch_size=self._batch_size,
-            shuffle=True,
-            input_nodes=self.test_idx)
-        
-        test_list_loader = []
-        for sampled_data in tqdm(loader_test, desc="Sample data"):
-            sampled_data.label_mask[sampled_data.batch_size :] = False
+            batch_size=self.batch_size,
+            input_nodes=self.train_idx,
+            groups_names=self.groups_names,
+            group_mask=self.data.group_mask,
+            node_feature_indices=self.node_feature_indices,
+            unique_groups=unique_groups,
+            groups_features=self.node_feature_indices,
+        )
 
-            for group in unique_groups:
-                name = self.groups_names[group]
-                mask = sampled_data.group_mask == group
-                features = self.node_feature_indices[group]
-                setattr(sampled_data, name, sampled_data.x[mask][:, features])
+        self.test_loader = create_loaders(
+            data=self.data,
+            num_neighbors=self.num_neighbors,
+            batch_size=self.batch_size,
+            input_nodes=self.train_idx,
+            groups_names=self.groups_names,
+            group_mask=self.data.group_mask,
+            node_feature_indices=self.node_feature_indices,
+            unique_groups=unique_groups,
+            groups_features=self.node_feature_indices,
+        )
 
-            del sampled_data.x
-
-            test_list_loader.append(sampled_data)
-            
-        self.test_loader = test_list_loader
-                    
     def run(self) -> Dict[str, float]:
-
         if not (hasattr(self, "train_loader") and hasattr(self, "test_loader")):
             self.init_loaders()
 
