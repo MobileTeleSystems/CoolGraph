@@ -133,7 +133,7 @@ Below you can see the result of CoolGraph for some Open datasets.
 |             | `Metric` |`Runner` | `HypeRunner` | `MultiRunner` | `Colab Notebook` |
 | ----------- | ------ | ----- | ------- | ------- | ------- |
 | **Amazon Comp**   | Accuracy |0.928  |  0.924 | | [AMZ Comp](https://colab.research.google.com/drive/1fS4K2rAe3KBsFZq1Wvpn2R1S3osWjCDx#scrollTo=wOGOvWq4zxO1)| 
-| **Amazon Photo**   | Accuracy |0.957 |  | | [AMZ Comp](https://colab.research.google.com/drive/1fS4K2rAe3KBsFZq1Wvpn2R1S3osWjCDx#scrollTo=wOGOvWq4zxO1)|
+| **Amazon Photo**   | Accuracy |0.957 |  | | [AMZ Photo](https://colab.research.google.com/drive/1fS4K2rAe3KBsFZq1Wvpn2R1S3osWjCDx#scrollTo=wOGOvWq4zxO1)|
 
 
 ## Library Structure
