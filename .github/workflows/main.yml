@@ -17,6 +17,7 @@ jobs:
         pip install build
     - name: Test with pytest
       run: |
+        pip install build
         pip install pytest
         pytest .
     - name: Build a source tarball
