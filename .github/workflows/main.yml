@@ -17,7 +17,8 @@ jobs:
         pip install build
     - name: Test with pytest
       run: |
-        coverage run --source=cool_graph -m pytest . && coverage report -m
+        pip install pytest
+        pytest .
     - name: Build a source tarball
       if: startsWith(github.ref, 'refs/tags')
       run: |
