@@ -50,7 +50,6 @@ Look at page notebook in [Run examples](https://github.com/MobileTeleSystems/Coo
 
 or you can see the example with open fraud dataset from Yelp at [fraud dataset notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/YelpChi_dataset_with_edge_attr.ipynb)
 
-Here is a graph with 2 groups in nodes [Google Drive](https://drive.google.com/file/d/1cjuwv5-oJRvDbNZ--H2woYShzU3nUzpn/view?usp=sharing)
 ## Benchmark
 
 Comming soon
