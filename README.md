@@ -51,11 +51,6 @@ Dataset                   | accuracy | ROC-AUC | SOTA accuracy | SOTA ROC-AUC
 `pip install cool-graph`
 
 
-## Install CoolGraph in Google Colab 
-
-example is coming soon
-
-
 # Get started
 
 
