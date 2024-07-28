@@ -91,14 +91,14 @@ For more information look at Tutorials
 
 # Tutorials
 
-1. [Easy start](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/Easy_start.ipynb)
-2. [Main features](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/Usage_examples.ipynb)
-3. [Making predictions and metric calculation](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/predict_proba_examples.ipynb)
-4. [Working with categorical features](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/categorical_features_usage_examples.ipynb)
-5. [Working with graph features](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/graph_features_usage_examples.ipynb)
-5. [Creating your own data loaders](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/Indices_for_DataLoader.ipynb)
-6. [Working with configs](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/How_to_work_with_configs.ipynb)
-7. [Benchmarks](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/benchmarks.ipynb)
+1. [Easy start](/notebooks/Easy_start.ipynb)
+2. [Main features](/notebooks/Usage_examples.ipynb)
+3. [Making predictions and metric calculation](h/notebooks/predict_proba_examples.ipynb)
+4. [Working with categorical features](/notebooks/categorical_features_usage_examples.ipynb)
+5. [Working with graph features](/notebooks/graph_features_usage_examples.ipynb)
+5. [Creating your own data loaders](/notebooks/Indices_for_DataLoader.ipynb)
+6. [Working with configs](/notebooks/How_to_work_with_configs.ipynb)
+7. [Benchmarks](/notebooks/benchmarks.ipynb)
 
 ## Library Structure
 
@@ -152,7 +152,7 @@ After that commit -> push -> PR.
 * [Sergey Kuliev](https://github.com/kuliev-sd)
 * [Igor Inozemtsev](https://github.com/inozemtsev)
 * [Nikita Zelinskiy](https://github.com/nikita-ds)
-* [Alexey Pristajko](https://github.com/qwertd105)
+* [Alexey Pristaiko](https://github.com/qwertd105)
 * [Vladislav Kuznetsov](https://github.com/AnanasClassic)
 
 ## License 
