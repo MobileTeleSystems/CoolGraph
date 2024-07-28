@@ -158,7 +158,7 @@ After that commit -> push -> PR.
 * [Igor Inozemtsev](https://github.com/inozemtsev)
 * [Nikita Zelinskiy](https://github.com/nikita-ds)
 * [Alexey Pristajko](https://github.com/qwertd105)
-* [Vlad Kuznetsov](https://github.com/AnanasClassic)
+* [Vladislav Kuznetsov](https://github.com/AnanasClassic)
 
 ## License 
 
