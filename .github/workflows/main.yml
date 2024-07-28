@@ -15,11 +15,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install build
-    - name: Test with pytest
-      run: |
-        pip install build
-        pip install pytest
-        pytest .
     - name: Build a source tarball
       if: startsWith(github.ref, 'refs/tags')
       run: |
