@@ -1,4 +1,4 @@
- include cool_graph/config/*.yaml
+include cool_graph/config/*.yaml
 include cool_graph/config/data/*.yaml
 include cool_graph/config/logging/*.yaml
 include cool_graph/config/metrics/*.yaml

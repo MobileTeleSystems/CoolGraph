@@ -1,4 +1,4 @@
-name: cool_graph_env2_py38
+name: cool_graph_env
 channels:
   - pytorch
   - pyg

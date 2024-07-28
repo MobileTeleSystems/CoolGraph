@@ -1,5 +1,6 @@
 import os
 import pathlib
+import traceback
 from datetime import datetime
 from itertools import product
 from pathlib import Path
@@ -27,16 +28,21 @@ from tqdm import tqdm
 from cool_graph.data import RawDataProcessor
 from cool_graph.data.batch import get_auto_batch_size
 from cool_graph.data.loaders import create_loaders
+from cool_graph.data.utils import preprocessing_data
+from cool_graph.data.utils import compress_x_cat
+from cool_graph.data.utils import add_graph_node_features
+from cool_graph.data.utils import add_graph_edge_features
 from cool_graph.logging import setup_mlflow_from_config
 from cool_graph.parameter_search import (
     model_params_to_trial_params,
     sample_model_params,
 )
 from cool_graph.train import Trainer
+from cool_graph.train.helpers import eval_epoch
+from cool_graph.train.metrics import get_metric
 
 
-def create_cfg(config: str, overrides: List[str], path_base: str = "cfg") -> Dict:
-    assert path_base in ("cfg", "cwd")
+def create_config2(config: str, overrides: List[str], path_base: str = "cfg") -> Dict:
     core.global_hydra.GlobalHydra.instance().clear()
     if os.path.isabs(config):
         config_path = pathlib.Path(config).parent
@@ -220,6 +226,11 @@ class BaseRunner:
         train_idx: Optional[List[int]] = None,
         test_idx: Optional[List[int]] = None,
         use_edge_attr: bool = False,
+        use_graph_node_features = False,
+        use_graph_edge_features = False,
+        use_index_as_feature: bool = False,
+        verbose: bool = True,
+        embedding_data: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -249,7 +260,7 @@ class BaseRunner:
                 else:
                     config_path = "./config/in_memory_data.yaml"
                 config_path = os.path.join(os.path.dirname(__file__), config_path)
-            config = create_cfg(
+            config = create_config2(
                 config=config_path, overrides=overrides, path_base="cfg"
             )
         cfg = OmegaConf.to_container(config, resolve=True)
@@ -261,36 +272,84 @@ class BaseRunner:
         self.train_idx = train_idx
         self.test_idx = test_idx
         self.use_edge_attr = use_edge_attr
+        self.embedding_data = embedding_data
+        self.use_cat_features = hasattr(data, 'x_cat')
+        self.verbose = verbose
+        
+        optuna.logging.set_verbosity(
+            optuna.logging.INFO if self.verbose
+            else optuna.logging.CRITICAL
+        )
 
+        if use_graph_node_features:
+            self.data = add_graph_node_features(self.data)
+
+        if use_graph_edge_features:
+            self.data = add_graph_edge_features(self.data)
+            use_edge_attr = True
+            
         if use_edge_attr and data.edge_attr is None:
             raise BaseException(
                 "data does not contain edge_attr, please set use_edge_attr=False"
             )
 
-        self.target_names = cfg["training"]["targets"]
         self.target_weights = cfg["training"]["loss"]["target_weights"]
         self.batch_size = cfg["training"]["batch_size"]
         self.num_neighbors = cfg["training"]["num_neighbors"]
         self.metrics = cfg["metrics"]
         self.data.group_mask = torch.zeros(len(data.x), dtype=torch.int8)
-        self.data.label_mask = torch.ones(len(data.x), dtype=torch.bool)
         self.groups_names = {0: "x"}
         self.groups_names_num_features = {"x": data.x.shape[1]}
-
-        if len(data.y.shape) == 2:
-            self.target_sizes = []
-            self.target_names = []
-            self.target_weights = {}
-            for i in range(data.y.shape[1]):
-                y_sub = data.y[:, i]
-                setattr(data, f"y{i}", y_sub)
-                self.target_sizes.append(len(y_sub.unique()))
-                self.target_names.append(f"y{i}")
-                self.target_weights[f"y{i}"] = 1
+        
+        if use_index_as_feature:
+            index = torch.tensor(list(range(0, self.data.x.shape[0]))).reshape(-1, 1)
+            if self.use_cat_features:
+                self.data.x_cat = torch.hstack((self.data.x_cat, index))
+            else:
+                self.data.x_cat = index
+                self.use_cat_features=True
+        
+        if self.use_cat_features:
+            self.groups_cat_names = {0: "x_cat"}
+            self.groups_names_num_cat_features = {"x_cat": data.x_cat.shape[1]}
+            
+            if type(self.data.x_cat) != torch.Tensor:
+                self.data.x_cat = torch.tensor(self.data.x_cat)
+            self.data = compress_x_cat(self.data)
+            self.data.x_cat = self.data.x_cat.long()
+            
+            self.cat_features_sizes = torch.max(self.data.x_cat, 0).values + 1
         else:
-            self.target_names = ["y"]
-            self.target_sizes = [len(data.y.unique())]
-            self.target_weights = {"y": 1}
+            self.groups_names_num_cat_features = 0
+            self.cat_features_sizes = None
+    
+        if len(data.y.shape) == 2:
+            (
+                self.target_names,
+                self.target_weights,
+                self.target_sizes,
+            ) = preprocessing_data(self.data)
+
+        else:
+            self.target_names = cfg["training"]["targets"]
+            self.classes = self.data.y.unique()
+            self.target_sizes = [
+                len(self.classes[self.classes != cfg["training"]["loss"]["fill_value"]])
+            ]
+            self.target_weights = cfg["training"]["loss"]["target_weights"]
+
+        setattr(
+            self.data,
+            "label_mask",
+            (
+                torch.vstack([getattr(data, name) for name in self.target_names])
+                != cfg["training"]["loss"]["fill_value"]
+            )
+            .max(dim=0)
+            .values,
+        )
+
+        self.data.label_mask = data.label_mask
 
         if use_edge_attr:
             self.num_edge_features = data.edge_attr.shape[1]
@@ -306,7 +365,7 @@ class BaseRunner:
         if self.cfg["logging"].get("use_mlflow", False):
             setup_mlflow_from_config(cfg["logging"]["mlflow"])
 
-    def init_loaders(self) -> None:
+    def sample_data(self) -> None:
         """
         Sampling data into batches and sampling data with NeighborLoader into list loaders.
         """
@@ -344,41 +403,30 @@ class BaseRunner:
             self.train_idx = train_idx
             self.test_idx = test_idx
 
-        def sample_date_prerpoc(sampled_data: Data) -> Data:
-            sampled_data.label_mask[sampled_data.batch_size :] = False
+        unique_groups = np.unique(self.data.group_mask)
 
-            for group, name in self.groups_names.items():
-                x = getattr(sampled_data, name)[sampled_data.group_mask == group]
-                setattr(sampled_data, name, x)
-            return sampled_data
-
-        loader_train = NeighborLoader(
-            self.data,
+        self.train_loader = create_loaders(
+            data=self.data,
             num_neighbors=self.num_neighbors,
             batch_size=self._batch_size,
-            shuffle=True,
             input_nodes=self.train_idx,
+            groups_names=self.groups_names,
+            group_mask=self.data.group_mask,
+            unique_groups=unique_groups,
+            disable= not self.verbose,
         )
 
-        list_loader_train = []
-        for sampled_data in tqdm(loader_train, desc="Sample data"):
-            list_loader_train.append(sample_date_prerpoc(sampled_data))
-
-        self.train_loader = list_loader_train
-
-        loader_test = NeighborLoader(
-            self.data,
+        self.test_loader = create_loaders(
+            data=self.data,
             num_neighbors=self.num_neighbors,
             batch_size=self._batch_size,
-            shuffle=True,
             input_nodes=self.test_idx,
+            groups_names=self.groups_names,
+            group_mask=self.data.group_mask,
+            unique_groups=unique_groups,
+            disable= not self.verbose,
         )
-
-        list_loader_test = []
-        for sampled_data in tqdm(loader_test, desc="Sample data"):
-            list_loader_test.append(sample_date_prerpoc(sampled_data))
-
-        self.test_loader = list_loader_test
+        return {"train_loader": self.train_loader, "test_loader": self.test_loader}
 
 
 class Runner(BaseRunner):
@@ -436,6 +484,11 @@ class Runner(BaseRunner):
         train_idx: Optional[List[int]] = None,
         test_idx: Optional[List[int]] = None,
         use_edge_attr: bool = False,
+        use_graph_node_features = False,
+        use_graph_edge_features = False,
+        use_index_as_feature: bool = False,
+        verbose: bool = True,
+        embedding_data: bool = False,
         **kwargs,
     ):
         super().__init__(
@@ -449,10 +502,16 @@ class Runner(BaseRunner):
             train_idx,
             test_idx,
             use_edge_attr,
+            use_graph_node_features,
+            use_graph_edge_features,
+            use_index_as_feature,
+            verbose,
+            embedding_data,
             **kwargs,
         )
+        self.trainer = None
 
-    def run(self) -> Dict[str, float]:
+    def run(self, train_loader=None, test_loader=None) -> Dict[str, float]:
         """
         Training model with params in_memory_data/in_memory_data2 config.
         See the configs in ./config for knowing what excactly using as logging/model_params/training/metrics.
@@ -460,8 +519,13 @@ class Runner(BaseRunner):
         Steps for changing confis:
         - make get_config --configs path_where_you_need_configs (default: new path ./configs by itself)
         """
-        if not (hasattr(self, "train_loader") and hasattr(self, "test_loader")):
-            self.init_loaders()
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+
+        if (self.train_loader is None) and (self.test_loader is None):
+            self.sample_data()
+        elif "index" not in self.data.keys:
+            raise Exception("please, add field 'index' to your data before initializing loaders. Look at notebooks for Example")
 
         self.trainer = Trainer(
             self.train_loader,
@@ -485,16 +549,128 @@ class Runner(BaseRunner):
             scheduler_type=self.cfg["training"].get("scheduler_type"),
             target_names=self.target_names,
             use_mlflow=self.cfg["logging"].get("use_mlflow", False),
-            tqdm_disable=False,
+            tqdm_disable=not self.verbose,
             target_sizes=self.target_sizes,
             **self.cfg["model_params"],
             groups_names_num_features=self.groups_names_num_features,
+            groups_names_num_cat_features=self.groups_names_num_cat_features,
+            cat_features_sizes=self.cat_features_sizes,
             num_edge_features=self.num_edge_features,
             metrics=self.metrics,
             log_all_metrics=False,
+            log_metric=self.verbose,
+            embedding_data=self.embedding_data,
         )
         result = self.trainer.train()
         return result
+
+    def predict_proba(
+        self,
+        data,
+        test_mask=None,
+        predict_loader=None,
+        batch_size: Optional[int] = None,
+        num_neighbors: Optional[int] = None
+    ):
+        """
+        Args:
+        data (Data): A data object describing a homogeneous graph. The data object can hold node-level,
+        link-level and graph-level attributes. In general, Data tries to mimic the behavior of a regular Python
+        dictionary. In addition, it provides useful functionality for analyzing graph structures, and provides basic
+        PyTorch tensor functionalities.
+        https://pytorch-geometric.readthedocs.io/en/latest/get_started/introduction.html#data-handling-of-graphs
+        test_mask: mask of nodes from data.x on which predictions will be made. Default to range(0, len(data.x)), meaning
+        all of nodes from data
+
+        Returns:
+            preds (Dict[str, float]): Dict with predictions of probabilities on each task
+            indices (torch.tensor(int)): indices matching nodes from preds to labels from data
+
+        Examples
+        --------
+        >>> from cool_graph.runners import Runner
+        >>> from torch_geometric import datasets
+        >>> # loading amazon dataset
+        >>> data = datasets.Amazon(root="./data/Amazon", name="Computers").data
+        >>> runner = Runner(data)
+        >>> result = runner.run()
+        >>> result["best_loss"]
+            {'accuracy': 0.916,
+            'cross_entropy': 0.286,
+            'f1_micro': 0.916,
+            'calc_time': 0.004,
+            'main_metric': 0.916,
+            'epoch': 10}
+        >>> preds, indices = runner.predict_proba(data, test_mask=runner.test_idx,
+            batch_size='auto')
+        >>>preds
+            'y': array([[1.93610392e-03, 5.08281529e-01, 3.10600898e-03, ...,
+             7.42573151e-03, 3.01667452e-01, 1.28832005e-03],
+            [1.47580403e-11, 9.99880552e-01, 1.03485095e-10, ...,
+             6.51596277e-11, 2.65427474e-07, 6.00029034e-15],
+            [9.98413205e-01, 2.00255581e-08, 6.93480979e-06, ...,
+             2.96822922e-08, 3.92414279e-08, 3.74058899e-08],
+            ...,
+            [3.35409859e-05, 1.15004822e-03, 2.12268560e-06, ...,
+             2.37720778e-05, 8.57518315e-01, 1.21086057e-04],
+            [8.91507423e-11, 9.99903917e-01, 3.53415408e-10, ...,
+             7.17140583e-11, 8.49195416e-08, 2.95486618e-15],
+            [6.94501125e-07, 1.11814063e-06, 1.24563138e-11, ...,
+             7.48802895e-11, 4.13234375e-06, 4.48725057e-10]], dtype=float32)}
+        >>>preds["y"].shape
+            (3438, 10) # preds for 3438 nodes in test sample of each of 10 classes
+        >>>len(indices)
+            3438
+        """
+        if self.trainer is None:
+            raise Exception("runner is not trained, please do run()")
+
+        if test_mask is None:
+            test_mask = range(0, len(data.x))
+
+        if batch_size is None:
+            batch_size = self.batch_size
+
+        if num_neighbors is None:
+            num_neighbors = self.num_neighbors
+
+        #preprocessing_data(data)
+
+        data.group_mask = torch.zeros(len(data.x), dtype=torch.int8)
+        unique_groups = np.unique(data.group_mask)
+        
+        self.predict_loader = predict_loader
+        if predict_loader is None:
+            self.predict_loader = create_loaders(
+                data=data,
+                num_neighbors=num_neighbors,
+                batch_size=batch_size,
+                input_nodes=test_mask,
+                groups_names=self.groups_names,
+                group_mask=data.group_mask,
+                unique_groups=unique_groups,
+                disable=not self.verbose,
+            )
+        elif "index" not in self.data.keys:
+            raise Exception("please, add field 'index' to your data before initializing loaders. Look at notebooks for Example")
+
+        test_metric, test_preds, test_indices = eval_epoch(
+            self.trainer._model,  # _model from trainer
+            self.predict_loader,  # loader for prediction
+            self.trainer.device,
+            self.target_names,
+            self.groups_names,
+            postfix="predict",
+            use_edge_attr=self.trainer._use_edge_attr,
+            tqdm_disable=not self.verbose,
+            fill_value=self.trainer.fill_value,
+            count_metrics=False,
+            log_all_metrics=False,
+            log_metric=self.verbose,
+            embedding_data=self.embedding_data,
+        )
+
+        return test_preds, test_indices
 
 
 class HypeRunner(BaseRunner):
@@ -503,7 +679,8 @@ class HypeRunner(BaseRunner):
     https://optuna.readthedocs.io/en/stable/reference/index.html
     1st trial - with default config params (hyper_params).
     Also, 2nd trial - you can add own trial as argument enqueue_trial in optimazire_run method, and next
-    trial optuna optimize model params randomly, if set None randomly optimization after 1st default trial.
+    trial optuna optimize model params randomly,
+    if set None randomly optimization after 1st default trial.
 
     Args:
         data (Data): Loaded dataset.
@@ -523,7 +700,7 @@ class HypeRunner(BaseRunner):
     >>> # loading amazon dataset
     >>> data = datasets.Amazon(root="./data/Amazon", name="Computers").data
     >>> runner = HypeRunner(data)
-    >>> result = runner.run(optimize_run)
+    >>> result = runner.optimize_run()
     Study statistics:
       Number of finished trials:  5
       Number of complete trials:  5
@@ -549,6 +726,12 @@ class HypeRunner(BaseRunner):
         seed: Optional[int] = None,
         train_idx: Optional[List[int]] = None,
         test_idx: Optional[List[int]] = None,
+        use_edge_attr: bool = False,
+        use_graph_node_features = False,
+        use_graph_edge_features = False,
+        use_index_as_feature: bool = False,
+        verbose: bool = True,
+        **kwargs,
     ):
         super().__init__(
             data,
@@ -560,16 +743,38 @@ class HypeRunner(BaseRunner):
             seed,
             train_idx,
             test_idx,
+            use_edge_attr,
+            use_graph_node_features,
+            use_graph_edge_features,
+            use_index_as_feature,
+            verbose,
+            **kwargs,
         )
+
+        self.best_trainer = None
+        self.best_model_loss = None
+
         if config is None:
             if config_path is None:
-                config_path = os.path.join(
-                    os.path.dirname(__file__), "./config/in_memory_data.yaml"
-                )
-            config = create_cfg(
+                if use_edge_attr:
+                    config_path = "./config/in_memory_data2.yaml"
+                else:
+                    config_path = "./config/in_memory_data.yaml"
+                config_path = os.path.join(os.path.dirname(__file__), config_path)
+            config = create_config2(
                 config=config_path, overrides=overrides, path_base="cfg"
             )
+
+        if use_edge_attr and data.edge_attr is None:
+            raise BaseException(
+                "data does not contain edge_attr, please set use_edge_attr=False"
+            )
+
         self.study = optuna.study
+        self.use_edge_attr = use_edge_attr
+
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def optimize_run(
         self,
@@ -577,9 +782,9 @@ class HypeRunner(BaseRunner):
         storage: Optional[str] = None,
         study_name: Optional[str] = None,
         enqueue_trial: Optional[List[Dict]] = None,
+        train_loader=None,
+        test_loader=None,
     ) -> pd.DataFrame:
-        if not (hasattr(self, "train_loader") and hasattr(self, "test_loader")):
-            self.init_loaders()
         """
         Method for running objective function in Optuna.
 
@@ -588,13 +793,22 @@ class HypeRunner(BaseRunner):
             None represents no limit in terms of the number of trials. Defaults to 100.
             storage (Optional[str], optional): Database URL. If this argument is set to None,
             in-memory storage is used, and the Study will not be persistent. Defaults to None.
-            study_name (Optional[str], optional): Study name. 
+            study_name (Optional[str], optional): Study name.
             If this argument is set to None, a unique name is generated automatically. Defaults to None.
             enqueue_trial (Optional[List[Dict]], optional): Enqueue a trial with given parameter values. Defaults to None.
 
         Returns:
             trials_dataset (pd.DataFrame): Result dataframe with trial params.
         """
+
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+
+        if (self.train_loader is None) and (self.test_loader is None):
+            self.sample_data()
+        elif "index" not in self.data.keys:
+            raise Exception("please, add field 'index' to your data before initializing loaders. Look at notebooks for Example")
+
         list_with_params = []
 
         def objective(trial) -> float:
@@ -628,17 +842,29 @@ class HypeRunner(BaseRunner):
                 scheduler_type=self.cfg["training"].get("scheduler_type"),
                 target_names=self.target_names,
                 use_mlflow=self.cfg["logging"].get("use_mlflow", False),
-                tqdm_disable=False,
+                tqdm_disable=not self.verbose,
                 target_sizes=self.target_sizes,
                 **self.cfg["model_params"],
                 groups_names_num_features=self.groups_names_num_features,
+                groups_names_num_cat_features=self.groups_names_num_cat_features,
+                cat_features_sizes=self.cat_features_sizes,
                 num_edge_features=self.num_edge_features,
                 metrics=self.metrics,
                 log_all_metrics=False,
+                log_metric=self.verbose,
             )
             result = self.trainer.train()
             output = result["best_loss"]["main_metric"]
             output = round(output, 3)
+
+            if self.best_trainer is None:
+                self.best_trainer = self.trainer
+                self.best_model_loss = output
+
+            if output > self.best_model_loss:
+                self.best_model_loss = output
+                self.best_trainer = self.trainer
+
             return output
 
         # default params for the 1st trial in Optuna optimization
@@ -664,21 +890,21 @@ class HypeRunner(BaseRunner):
                 self.study.enqueue_trial(user_params)
 
         self.study.optimize(
-            objective, n_trials=n_trials, n_jobs=1, show_progress_bar=False
+            objective,
+            n_trials=n_trials,
+            n_jobs=1,
+            show_progress_bar=False,
+            gc_after_trial=True,
+            catch=(RuntimeError, ValueError),
         )
+
         complete_trials = self.study.get_trials(
             deepcopy=False, states=[TrialState.COMPLETE]
         )
-
-        print("Study statistics: ")
-        print("  Number of finished trials: ", len(self.study.trials))
-        print("  Number of complete trials: ", len(complete_trials))
-
+        
         trial = self.study.best_trial
         dict_with_params = dict(enumerate(list_with_params))
-        print("Best trial:")
-        print("  Value: ", trial.value)
-
+        
         trials_dataset = self.study.trials_dataframe()
         trials_dataset = trials_dataset[
             [
@@ -694,12 +920,120 @@ class HypeRunner(BaseRunner):
         trial_dataset = pd.concat(
             [trials_dataset, pd.DataFrame(dict_with_params).T], axis=1
         )
-        print("  Params: ")
-        for i in trial_dataset["number"].tolist():
-            if trial_dataset["value"][i] == trial_dataset["value"].max():
-                print(dict_with_params[i])
+        if self.verbose:
+            print("Study statistics: ")
+            print("  Number of finished trials: ", len(self.study.trials))
+            print("  Number of complete trials: ", len(complete_trials))
+            print("Best trial:")
+            print("  Value: ", trial.value)
+            print("  Params: ")
+            for i in trial_dataset["number"].tolist():
+                if trial_dataset["value"][i] == trial_dataset["value"].max():
+                    print(dict_with_params[i])
 
         return trial_dataset
+
+    def predict_proba(
+        self,
+        data,
+        test_mask=None,
+        predict_loader=None,
+        batch_size: Optional[int] = None,
+        num_neighbors: Optional[int] = None
+    ):
+        """
+        Args:
+        data (Data): A data object describing a homogeneous graph. The data object can hold node-level,
+        link-level and graph-level attributes. In general, Data tries to mimic the behavior of a regular Python
+        dictionary. In addition, it provides useful functionality for analyzing graph structures, and provides basic
+        PyTorch tensor functionalities.
+        https://pytorch-geometric.readthedocs.io/en/latest/get_started/introduction.html#data-handling-of-graphs
+        test_mask: mask of nodes from data.x on which predictions will be made. Default to range(0, len(data.x)), meaning
+        all of nodes from data
+
+        Returns:
+            preds (Dict[str, float]): Dict with predictions probabilities on each task
+            indices (torch.tensor(int)): indices matching nodes from preds to labels from data
+
+        Examples
+        --------
+        >>> from cool_graph.runners import HypeRunner
+        >>> from torch_geometric import datasets
+        >>> # loading amazon dataset
+        >>> data = datasets.Amazon(root="./data/Amazon", name="Computers").data
+        >>> runner = HypeRunner(data)
+        >>> result = runner.optitmize_run()
+        >>> preds, indices = runner.predict_proba(data, test_mask=runner.test_idx metrics=['accuracy'],
+            batch_size='auto')
+        >>>preds
+            'y': array([[1.93610392e-03, 5.08281529e-01, 3.10600898e-03, ...,
+             7.42573151e-03, 3.01667452e-01, 1.28832005e-03],
+            [1.47580403e-11, 9.99880552e-01, 1.03485095e-10, ...,
+             6.51596277e-11, 2.65427474e-07, 6.00029034e-15],
+            [9.98413205e-01, 2.00255581e-08, 6.93480979e-06, ...,
+             2.96822922e-08, 3.92414279e-08, 3.74058899e-08],
+            ...,
+            [3.35409859e-05, 1.15004822e-03, 2.12268560e-06, ...,
+             2.37720778e-05, 8.57518315e-01, 1.21086057e-04],
+            [8.91507423e-11, 9.99903917e-01, 3.53415408e-10, ...,
+             7.17140583e-11, 8.49195416e-08, 2.95486618e-15],
+            [6.94501125e-07, 1.11814063e-06, 1.24563138e-11, ...,
+             7.48802895e-11, 4.13234375e-06, 4.48725057e-10]], dtype=float32)}
+        >>>preds["y"].shape
+            (3438, 10) # preds for 3438 nodes in test sample of each of 10 classes
+        >>>len(indices)
+            3438
+        """
+
+        if self.trainer is None:
+            raise Exception("runner is not trained, please do optimize_run()")
+
+        if test_mask is None:
+            test_mask = range(0, len(data.x))
+
+        if batch_size is None:
+            batch_size = self.batch_size
+
+        if num_neighbors is None:
+            num_neighbors = self.num_neighbors
+
+        #preprocessing_data(data)
+
+        data.group_mask = torch.zeros(len(data.x), dtype=torch.int8)
+        unique_groups = np.unique(data.group_mask)
+        
+        self.predict_loader = predict_loader
+        if predict_loader is None:
+            self.predict_loader = create_loaders(
+                data=data,
+                num_neighbors=num_neighbors,
+                batch_size=batch_size,
+                input_nodes=test_mask,
+                groups_names=self.groups_names,
+                group_mask=data.group_mask,
+                unique_groups=unique_groups,
+                disable=not self.verbose,
+            )
+        elif "index" not in self.data.keys:
+            raise Exception("please, add field 'index' to your data before initializing loaders. Look at notebooks for Example")
+
+        test_metric, test_preds, test_indices = eval_epoch(
+            self.best_trainer._model,  # _model from best_trainer
+            self.predict_loader,  # loader for prediction
+            self.best_trainer.device,
+            self.target_names,
+            self.groups_names,
+            postfix="predict",
+            use_edge_attr=self.best_trainer._use_edge_attr,
+            tqdm_disable=False,
+            fill_value=self.best_trainer.fill_value,
+            count_metrics=False,
+            log_all_metrics=False,
+            log_metric=self.verbose,
+            embedding_data=self.embedding_data,
+        )
+
+        return test_preds, test_indices
 
 
 class MultiRunner:
@@ -725,7 +1059,7 @@ class MultiRunner:
 
     def __init__(
         self,
-        data: Data,
+        data: Optional[Data] = None,
         config: Optional[DictConfig] = None,
         config_path: Optional[str] = None,
         overrides: Optional[List] = None,
@@ -734,6 +1068,7 @@ class MultiRunner:
         seed: Optional[int] = None,
         train_idx: Optional[List[int]] = None,
         test_idx: Optional[List[int]] = None,
+        embedding_data: bool = False,
         **kwargs,
     ) -> None:
         if config is None:
@@ -741,12 +1076,11 @@ class MultiRunner:
                 config_path = os.path.join(
                     os.path.dirname(__file__), "./config/full.yaml"
                 )
-            config = create_cfg(
+            config = create_config2(
                 config=config_path, overrides=overrides, path_base="cfg"
             )
 
         cfg = OmegaConf.to_container(config, resolve=True)
-
         self.cfg = cfg
         self.data = data
         self.test_size = test_size
@@ -769,6 +1103,7 @@ class MultiRunner:
         self.features_edges_names = cfg["data"].get("features_edges")
         self.group_names_node_features = cfg["data"]["features"]
         self.metrics = cfg["metrics"]
+        self.embedding_data = embedding_data
         self.chkpt_dir = (
             pathlib.Path(cfg["logging"]["checkpoint_dir"]) / str(datetime.now())[:19]
         )
@@ -817,7 +1152,7 @@ class MultiRunner:
         self.train_loader = create_loaders(
             data=self.data,
             num_neighbors=self.num_neighbors,
-            batch_size=self.batch_size,
+            batch_size=self._batch_size,
             input_nodes=self.train_idx,
             groups_names=self.groups_names,
             group_mask=self.data.group_mask,
@@ -829,8 +1164,8 @@ class MultiRunner:
         self.test_loader = create_loaders(
             data=self.data,
             num_neighbors=self.num_neighbors,
-            batch_size=self.batch_size,
-            input_nodes=self.train_idx,
+            batch_size=self._batch_size,
+            input_nodes=self.test_idx,
             groups_names=self.groups_names,
             group_mask=self.data.group_mask,
             node_feature_indices=self.node_feature_indices,
@@ -871,6 +1206,7 @@ class MultiRunner:
             },
             num_edge_features=len(self.cfg["data"].get("features_edges", [])),
             metrics=self.metrics,
+            embedding_data=self.embedding_data,
         )
         result = self.trainer.train()
         return result

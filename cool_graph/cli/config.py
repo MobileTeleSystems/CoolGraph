@@ -19,7 +19,7 @@ def main(configs: str = "./config/") -> None:
     Args:
         configs (str, optional): path for configs. Defaults to "./config/".
     """
-    src = getsitepackages() + "/cool_graph/config/"
+    src = getsitepackages()[-1] + "/cool_graph/config/"
     copytree(src=src, dst=configs, dirs_exist_ok=True)
 
 

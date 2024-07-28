@@ -198,7 +198,6 @@ features_edges:
   - edge_feature_46
   - edge_feature_47
   - edge_feature_48
-# indices of node feats per each group
 node_feature_indices:
     0: 
     - 219

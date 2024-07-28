@@ -1,84 +1,67 @@
-**CoolGraph** is an easy-to-use Python library with Graph Neural Networks for node classification. 
-The **CoolGraph** contains several architectures that will help you train a network using two lines of code.
+CoolGraph is an easy-to-use Python library using Graph Neural Networks for node classification. The CoolGraph contains several architectures that will help you train a network using two lines of code.
 
 Thus, the parameters for training have already been selected and collected in configs, but you can change them as you wish.
 
-Also, if for some reason the selected parameters do not ok for you, it is possible to use the search for hyperparameters with Optuna. 
+Also, if for some reason the selected parameters do not ok for you, it is possible to use the search for hyperparameters with Optuna.
 
-Moreover, your experiments can be saved in Mlflow and fully tracked. 
+Moreover, your experiments can be saved in Mlflow and fully tracked.
 
-All you need is **graph-structured data**.
+All you need is graph-structured data.
 
-## Main advantages of CoolGraph:
-  * **Quick start with 2 lines of code**
-  * **Good quality of base models, comparable to state of the art**
-  * **Heterogeneous graph support**
-  * **The best model architecture automatic search via [Optuna](https://optuna.org/)**
-  * **Tracking experiments with [MLflow](https://mlflow.org/)**
-  * **User could define the targets count and target weights in the loss function**
-  * **Etimating batch size and neighbourhood sampling sizes for the first and second hop via graph metrics calculation**
+# Main advantages of CoolGraph:
+ - quick start in one line of code
+ - good quality of base models, comparable to state of the art
+ - the best model architecture automatic search via optuna
+ - heterogeneous graph support
+ - multitarget support
+ - both node and edge features support
+ - categorical and graph feaures usage
+ - tracking experiments with mlflow
 
-## Documentation
+ 
+# Benchmarks
 
-For more details, look at tutorials in folder Notebooks.
-
-## Install with creating conda
-
-```
-conda deactivate
-conda create -n cool_graph_env2_py38 python=3.8 cudatoolkit=11.3.1 pytorch=1.12.0=py3.8_cuda11.3_cudnn8.3.2_0 cxx-compiler=1.5.1 pyg=2.2.0=py38_torch_1.12.0_cu113 pyarrow=11.0.0 numpy=1.23.5 pandas=1.4.4 pip=22.3.1 py=1.11.0 mysqlclient=2.0.3 sqlite=3.38.2 psycopg2=2.8.6 optuna=2.10.1 -c nvidia -c pytorch -c conda-forge -c pyg
-pip install cool-graph
-```
-
-## Install with creating conda from yml file
-
-```
-conda deactivate
-conda env create -f environment.yml
-pip install cool-graph
-```
+Dataset                   | accuracy | ROC-AUC | SOTA accuracy | SOTA ROC-AUC
+--------------------------|----------|---------|---------------|-------------
+**AntiFraud Amazon**      | 0.9828   | 0.9617  | -             | 0.9750
+**AntiFraud YelpChi**     | 0.9050   | 0.9176  | -             | 0.9498
+**Multitarget 10k**       | 0.8651   | 0.7415  | -             | -
+**Multitarget 50k**       | 0.8637   | 0.7973  | -             | -
+**Penn94**                | 0.7829   | 0.8714  | 0.8609        | -
+**Genius**                | 0.8405   | 0.9016  | 0.9145        | -
+**S_FFSD**                | 0.8961   | 0.8932  | -             | 0.8461
+**OgbnProteins**          | 0.8967   | 0.8058  | -             | 0.8942
 
 
-## Install CoolGraph without creating conda
+# Installation
+## Install with creating conda env
 
-You can use CoolGraph in Google Colab without installing the conda, but make sure that the default colab environment matches the required versions for the library. 
-[Google Colab](https://colab.research.google.com/drive/1FapJyDXJyYJtBo1fmyBLcrH6DSqMcztz#updateTitle=true&folderId=1HiTMhdLL0HQqQpja7uaeRJJROcysXk2p&scrollTo=SB2W-lYhDSUF)
+`conda deactivate` <br>
+`conda create -n cool_graph_env python=3.8 cudatoolkit=11.3.1 pytorch=1.12.0=py3.8_cuda11.3_cudnn8.3.2_0 cxx-compiler=1.5.1 pyg=2.2.0=py38_torch_1.12.0_cu113 pyarrow=11.0.0 numpy=1.23.5 pandas=1.4.4 pip=22.3.1 py=1.11.0 mysqlclient=2.0.3 sqlite=3.38.2 psycopg2=2.8.6 optuna=2.10.1 -c nvidia -c pytorch -c conda-forge -c pyg`  <br>
+`conda activate cool_graph_env`.   <br>
+`pip install cool-graph`
 
-## Usage
 
-Look at page notebook in [Run examples](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/CoolGraph_usage_examples.ipynb)
+## Install with creating conda env from yml file
 
-or you can see the example with open fraud dataset from Yelp at [fraud dataset notebook](https://github.com/MobileTeleSystems/CoolGraph/blob/main/notebooks/YelpChi_dataset_with_edge_attr.ipynb)
 
-## Benchmark
+`conda deactivate` <br>
+`conda env create -f environment.yml`  <br>
+`conda activate cool_graph_env`  <br>
+`pip install cool-graph`
 
-Comming soon
 
-## Configs
+## Install CoolGraph in Google Colab 
 
-In Coolgraph you can use default config structure but also you can change it. See below how to copy config structure to your path, see discovery in configs and run.
+example is coming soon
 
-## CoolGraph CLI
 
-```
-coolrun --config <path/to/config>
-```
+# Get started
 
-You can easily override config parameters: 
 
-```
-coolrun --config ./cool_graph/config/full.yaml training.n_epochs=5
-```
+## Basic usage
 
-To copy config structure use command:
-```
-get_config --configs <path/to/config/where/you/need/it>
-```
 
-## Jupyter notebook
-### Runner without Optuna
-
-Easy run with Amazon Computers dataset:
 ```python
 # Load Dataset
 from torch_geometric import datasets
@@ -99,45 +82,32 @@ runner = Runner(data,
                 test_size=0.3, 
                 overrides=['training.n_epochs=1', ...], 
                 config_path=...)
-result = runner.run()                
+result = runner.run()         
+print(result['best_loss'])       
 ```
-### Runner with Optuna
+## Runner with Optuna
 You can run HypeRunner for the best GNN architecture search
 ```python
-# Load Dataset
-from torch_geometric import datasets
-data = datasets.Amazon(root='./data/Amazon', name='Computers').data
-
-from cool_graph.runners import HypeRunner
-
 runner = HypeRunner(data)
 result = runner.optimize_run()
+
 ```
-For more information look at examples
+For more information look at Tutorials
 
-### Runner for heterogeneous graph
-Graph example from Google Drive 
-```python
-import torch
-data = torch.load("sample_of_graph")
+# Tutorials
 
-from cool_graph.runners import MultiRunner
-
-runner = MultiRunner(data)
-result = runner.run()
-```
-## Benchmarks
-Below you can see the result of CoolGraph for some Open datasets.
-
-|             | `Metric` |`Runner` | `HypeRunner` | `MultiRunner` | `Colab Notebook` |
-| ----------- | ------ | ----- | ------- | ------- | ------- |
-| **Amazon Comp**   | Accuracy |0.928  |  0.924 | | [AMZ Comp](https://colab.research.google.com/drive/1fS4K2rAe3KBsFZq1Wvpn2R1S3osWjCDx#scrollTo=wOGOvWq4zxO1)| 
-| **Amazon Photo**   | Accuracy |0.957 |  | | [AMZ Photo](https://colab.research.google.com/drive/1fS4K2rAe3KBsFZq1Wvpn2R1S3osWjCDx#scrollTo=wOGOvWq4zxO1)|
-
+1. [Easy start](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/Easy_start.ipynb)
+2. [Main features](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/Usage_examples.ipynb)
+3. [Making predictions and metric calculation](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/predict_proba_examples.ipynb)
+4. [Working with categorical features](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/categorical_features_usage_examples.ipynb)
+5. [Working with graph features](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/graph_features_usage_examples.ipynb)
+5. [Creating your own data loaders](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/Indices_for_DataLoader.ipynb)
+6. [Working with configs](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/How_to_work_with_configs.ipynb)
+7. [Benchmarks](https://gitlab.services.mts.ru/bigdata_rnd/rnd_team/coolgraph/-/blob/dev/notebooks/benchmarks.ipynb)
 
 ## Library Structure
 
-The directory structure of CoolGraph:
+The directory structure cool_graph:
 
 ```
 ├── config                       <- Config structure
@@ -152,8 +122,9 @@ The directory structure of CoolGraph:
 │
 ├── cli                    <- Cli commands
 ├── data                   <- Data processing, data loaders, batch sizes
+├── datasets               <- CoolGraph datasets
 ├── logging                <- MLflow logging experiments
-├── models                 <- Cool graph models
+├── models                 <- CoolGraph models
 ├── parameter_search       <- Sampling model params for Optuna
 ├── train                  <- Trainin / eval / metrics code
 ├── runners.py             <- Run training (CLI + Notebook)
@@ -186,7 +157,8 @@ After that commit -> push -> PR.
 * [Sergey Kuliev](https://github.com/kuliev-sd)
 * [Igor Inozemtsev](https://github.com/inozemtsev)
 * [Nikita Zelinskiy](https://github.com/nikita-ds)
-
+* [Alexey Pristajko](https://github.com/qwertd105)
+* [Vlad Kuznetsov](https://github.com/AnanasClassic)
 
 ## License 
 

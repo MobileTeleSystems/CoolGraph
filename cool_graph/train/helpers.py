@@ -1,8 +1,12 @@
 from collections import defaultdict
 from time import time
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+import sys
 
 import numpy as np
+import pandas as pd
+import torch
+import torch.nn.functional as F
 from loguru import logger
 from torch import Tensor, cat, nn, no_grad, optim, unique, utils
 from tqdm import tqdm
@@ -50,9 +54,8 @@ def train_epoch(
     for i in tqdm(indices, leave=False, disable=tqdm_disable):
         data_cut = list_loader[i]
         sampled_data = data_cut.detach().clone().to(device)
-
         optimizer.zero_grad()
-        out = model(sampled_data)
+        out, scores = model(sampled_data)
         loss = get_train_loss(
             sampled_data,
             out,
@@ -80,11 +83,13 @@ def eval_epoch(
     postfix: str = "",
     use_edge_attr: bool = True,
     log_metric: bool = True,
+    count_metrics: bool = True,
     tqdm_disable: bool = True,
     fill_value: Any = -100,
     metrics: Optional[Dict[str, Dict[str, Callable]]] = None,
     main_metric: Optional[Dict[str, str]] = None,
-    log_all_metrics: bool = False,
+    log_all_metrics: bool = True,
+    embedding_data: bool = False,
 ) -> Dict[str, float]:
     """
     Getting metrics. Using in training loop.
@@ -110,7 +115,16 @@ def eval_epoch(
 
     Returns:
         results (Dict[str, float]): Dict with metrics
+        preds (Dict[str, float]): Dict with predictions probabilities on each task
+        indices (torch.tensor(int)): indices matching nodes from preds to labels from data
     """
+
+    logger.remove()
+    logger.add(
+        sink=sys.stderr,
+        format="{time:YYYY-MM-DD HH:mm:ss} - {message}",
+    )
+    
     start_time = time()
     if mode == "eval":
         model.eval()
@@ -119,23 +133,49 @@ def eval_epoch(
 
     outs = defaultdict(list)
     ys = defaultdict(list)
+    preds = defaultdict(list)
+    scores = defaultdict(list)
     group_masks = []
+    indices = []
 
     with no_grad():
         for data_cut in tqdm(list_loader, leave=False, disable=tqdm_disable):
             sampled_data = data_cut.detach().clone().to(device)
             wh = data_cut.label_mask
-            out = model(sampled_data)
+            indices.extend(sampled_data.index.detach().cpu().numpy()[wh])
+            if embedding_data:
+                out, scores, embs = model.forward_with_embs(sampled_data)
+                for key in embs.keys():
+                    preds[key].extend(embs[key][wh])
+                for key in scores.keys():
+                    preds[key].extend(scores[key][wh])
+                preds = dict(preds)
+            else:
+                out, scores = model(sampled_data)
+                for key in scores.keys():
+                    preds[key].extend(np.array(scores[key][wh]))
+                preds = dict(preds)
+
             for key in out.keys():
                 outs[key].append(out[key].detach().cpu()[wh])
-                ys[key].append(data_cut.__getattr__(key)[wh])
+                if count_metrics:
+                    ys[key].append(data_cut.__getattr__(key)[wh])
             group_masks.append(data_cut.group_mask[wh])
+
+    for key in preds.keys():
+        preds[key] = np.array([pred for pred in preds[key]])
+        
+    if not count_metrics:
+        return {}, preds, indices
+        
     for key in outs.keys():
         outs[key] = cat(outs[key])
         ys[key] = cat(ys[key])
+    
     group_masks = cat(group_masks)
     unique_groups = unique(group_masks).detach().cpu().numpy()
     results = {key: defaultdict(dict) for key in metrics.keys()}
+    tasks = {key: defaultdict(dict) for key in metrics.keys()}
 
     for key, metric_dict in metrics.items():  # key = target_name
         y_wh = ys[key] != fill_value
@@ -149,7 +189,14 @@ def eval_epoch(
                     value = np.nan
                 else:
                     value = float(func(out, y))
-                results[key][metric_name][groups_name] = value
+                    if len(groups_name) >= 2:
+                        results[key][metric_name][groups_name] = value
+                    else:
+                        results[key][metric_name][key] = value
+                        tasks[key][metric_name] = value
+
+    for key in tasks.keys():
+        tasks[key] = dict(tasks[key])
 
     main_metric_val = []
     for key, metric_name in main_metric.items():
@@ -178,7 +225,9 @@ def eval_epoch(
     if log_metric:
         logger.info(f"{postfix}:\n {results}")
 
-    return results
+    results["tasks"] = tasks
+
+    return results, preds, indices
 
 
 def flat_metric(results) -> Dict[str, Union[int, float]]:
@@ -192,39 +241,3 @@ def flat_metric(results) -> Dict[str, Union[int, float]]:
 
 def add_prefix_to_dict_keys(d: dict, prefix: str = ""):
     return {prefix + k: v for k, v in d.items()}
-
-
-def get_score_with_index(
-    model: nn.Module,
-    list_loader: List[utils.data.DataLoader],
-    device: str,
-    use_edge_attr: bool = True,
-    tqdm_disable: bool = True,
-) -> Tuple[Tensor, Tensor]:
-    """
-    Get prediction per dataset.
-
-    Args:
-        model (nn.Module): Neural Network model type.
-        list_loader (List[utils.data.DataLoader]): Data loader. Combines a dataset
-        and a sampler, and provides an iterable over the given dataset.
-        https://pytorch.org/docs/stable/data.html
-        use_edge_attr (bool, optional): If graph edges have features, it can be use in training. Defaults to True.
-        tqdm_disable (bool, optional): Display progress. Defaults to True.
-    """
-    model.eval()
-    preds = []
-    indeces = []
-    with no_grad():
-        for data_cut in tqdm(list_loader, leave=False, disable=tqdm_disable):
-            sampled_data = data_cut.clone().to(device)
-            out = model(sampled_data).detach()
-            pred = out[sampled_data.label_mask]
-            index = sampled_data.index[sampled_data.label_mask]
-            pred = pred[:, :, 1].exp()
-            preds.append(pred.cpu())
-            indeces.append(index.cpu())
-
-    pred = cat(preds)
-    index = cat(indeces)
-    return pred, index

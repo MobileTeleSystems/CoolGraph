@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from sklearn.metrics import (
     accuracy_score,
@@ -5,6 +6,9 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score,
 )
+from torch_geometric.data import Data
+from typing import Dict, List, Literal, Optional
+from cool_graph.data.utils import preprocessing_data
 
 
 def from_logit_to_pred(out: torch.Tensor) -> torch.Tensor:
@@ -77,14 +81,16 @@ def roc_auc(out: torch.Tensor, y: torch.Tensor) -> float:
     Returns:
         float: Area Under the Curve score.
     """
-    if (len(out.shape) == 2) and (out.shape[1] == 2):
-        out = torch.nn.functional.softmax(out, dim=1)[:, 1]
-    y_pred = out.data.numpy()
     y_true = y.numpy()
-    try:
+    labels = np.unique(y_true)
+    if len(labels) > 2:
+        out = torch.nn.functional.softmax(out, dim=1)
+        y_pred = out.data.numpy()
+        return roc_auc_score(y_true, y_pred, multi_class="ovo", labels=labels)
+    if len(out.shape) == 2:
+        out = torch.nn.functional.softmax(out, dim=1)[:, 1]
+        y_pred = out.data.numpy()
         return roc_auc_score(y_true, y_pred)
-    except ValueError:
-        pass
 
 
 def average_precision(out: torch.Tensor, y: torch.Tensor) -> float:
@@ -126,3 +132,48 @@ def get_metric(name: str) -> float:
         return getattr(torch.nn.functional, name)
     else:
         raise NotImplementedError("no metric: " + name)
+
+        
+def calc_metrics(data: Data, preds, metrics: List[str], indices=None, test_mask=None, fill_value=-100):
+    """
+    Args:
+        data (PyG Data): data with true labels
+        preds (Dict[str, torch.Tensor]): dict of predictions for labels (logits or classes)
+        metrics (List[str]): list of names of metrics
+        indices (List[int]): order of nodes matching labels from data and preds
+        test_mask (List[int]): indices of nodes from preds on which metrics should be measured
+    Returns:
+        result (Dict[str, Dict[str, float]]): dict of score for each target and each metric
+    """
+        
+    if len(data.y.shape) == 2:
+        preprocessing_data(data)
+    
+    if indices is None:
+        indices = range(0, len(preds[(list(preds.keys())[0])]))
+    
+    if test_mask is None:
+        test_mask = range(0, len(preds[(list(preds.keys())[0])]))
+    
+    target_names = preds.keys()
+    result = {}
+    
+    if isinstance(metrics, str):
+        metrics = [metrics]
+    if isinstance(
+        metrics,
+        (
+            list,
+            tuple,
+        ),
+    ):
+        metrics = {name: metrics for name in target_names}
+    
+    result = {}
+    for target, metric_names in metrics.items():
+        wh = data[target][indices][test_mask] != fill_value
+        result[target] = {metric_name: get_metric(metric_name)(torch.tensor(preds[target][test_mask][wh]),
+                                                               data[target][indices][test_mask][wh])
+
+                          for metric_name in metric_names}
+    return result

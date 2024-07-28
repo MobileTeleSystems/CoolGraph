@@ -1,6 +1,7 @@
 from typing import Dict, List, Literal, Optional, Union
 
 import torch
+import torch.nn.functional as F
 from torch.nn import (
     ELU,
     GELU,
@@ -24,6 +25,7 @@ class NNConvGNN(torch.nn.Module):
         self,
         activation: Literal["elu", "relu", "prelu", "leakyrelu", "gelu"],
         groups_names_num_features: Dict[str, int],
+        groups_names_num_cat_features: Dict[str, int],
         groups_names: Dict[int, str],
         lin_prep_size_common: int,
         lin_prep_len: int,
@@ -50,6 +52,7 @@ class NNConvGNN(torch.nn.Module):
         groups_cat_names: Optional[Dict[int, str]] = None,
         target_names: Optional[List[str]] = None,
         target_sizes: Optional[List[int]] = None,
+        cat_features_sizes: Optional[List[int]] = None,
         **kwargs,
     ) -> None:
         super(NNConvGNN, self).__init__()
@@ -91,6 +94,9 @@ class NNConvGNN(torch.nn.Module):
         elif activation == "gelu":
             act_edge_last = GELU
 
+        if cat_features_sizes is not None:
+            self.multi_embed = MultiEmbedding(cat_features_sizes, None)
+
         for cat_name, num_embeddings in self.groups_cat_names_num_embeds.items():
             setattr(self, f"emb_{cat_name}", MultiEmbedding(num_embeddings))
 
@@ -109,6 +115,9 @@ class NNConvGNN(torch.nn.Module):
         self.lin_prep_tube.add_module("act0", act())
         self.lin_prep_tube.add_module("dropout0", Dropout(lin_prep_dropout_rate))
         lin_prep_sizes = [lin_prep_size_common] + lin_prep_sizes
+
+        lin_prep_sizes[0] += self.multi_embed.out_features if cat_features_sizes is not None else 0
+
         for i in range(lin_prep_len):
             lin = Linear(lin_prep_sizes[i], lin_prep_sizes[i + 1])
             if lin_prep_weight_norm_flag:
@@ -204,6 +213,14 @@ class NNConvGNN(torch.nn.Module):
             branch = getattr(self, f"lin_prep_{name}")
             x[mask == group] = branch(tensor)
 
+        if hasattr(data, 'x_cat'):
+            if type(data.x_cat) != torch.Tensor:
+                print(type(data.x_cat))
+                data.x_cat = torch.tensor(data.x_cat)
+            data.x_cat = data.x_cat.long()
+            x_cat = self.multi_embed(data.x_cat)
+            x = torch.cat([x, x_cat], dim=1)
+
         x = self.lin_prep_tube(x)
 
         x_out = []
@@ -220,5 +237,59 @@ class NNConvGNN(torch.nn.Module):
             x = self.conv2_dropout(self.conv2_activation(x))
 
         outs = {name: self.lin_out[name](x) for name in self.target_names}
+        scores = {
+            name: F.softmax(self.lin_out[name](x), dim=1).detach().cpu().numpy()
+            for name in self.target_names
+        }
 
-        return outs
+        return outs, scores
+
+    def forward_with_embs(
+        self, data: torch.utils.data.DataLoader
+    ) -> Dict[str, torch.Tensor]:
+        tensors = {v: getattr(data, v) for v in self.groups_names.values()}
+        tensors_cat = {v: getattr(data, v) for v in self.groups_cat_names.values()}
+        edge_index = data.edge_index
+        mask = data.group_mask
+        edge_attr = data.edge_attr
+
+        x = torch.zeros(
+            len(mask),
+            self.lin_prep_size_common,
+            device=list(tensors.values())[0].device,
+        )
+
+        for group in self.groups_names:
+            name = self.groups_names[group]
+            tensor = tensors[name]
+            if group in self.groups_cat_names:
+                cat_name = self.groups_cat_names[group]
+                tensor_cat = getattr(self, f"emb_{cat_name}")(tensors_cat[cat_name])
+                tensor = torch.cat([tensor, tensor_cat], dim=1)
+
+            branch = getattr(self, f"lin_prep_{name}")
+            x[mask == group] = branch(tensor)
+
+        x = self.lin_prep_tube(x)
+
+        x_out = []
+        for conv in self.conv1.values():
+            x_out.append(conv(x, edge_index, edge_attr))
+        x = torch.cat(x_out, dim=1)
+        x = self.conv1_dropout(self.conv1_activation(x))
+
+        if self.n_hops == 2:
+            x_out = []
+            for conv in self.conv2.values():
+                x_out.append(conv(x, edge_index, edge_attr))
+            x = torch.cat(x_out, dim=1)
+            x = self.conv2_dropout(self.conv2_activation(x))
+
+        outs = {name: self.lin_out[name](x) for name in self.target_names}
+        scores = {
+            name: F.softmax(self.lin_out[name](x), dim=1).detach().cpu().numpy()
+            for name in self.target_names
+        }
+        embs = {"emb": x.detach().cpu().numpy()}
+
+        return outs, scores, embs

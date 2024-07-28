@@ -35,6 +35,7 @@ class Trainer(object):
         loss_group_weights: Optional[List[float]] = None,
         groups_names: Optional[Dict[int, str]] = None,
         groups_names_num_features: Optional[Dict[str, int]] = None,
+        groups_names_num_cat_features: Optional[Dict[str, int]] = None,
         num_edge_features: Optional[int] = None,
         main_metric_name: str = "main_metric",
         mlflow_experiment_name: Optional[str] = None,
@@ -46,11 +47,14 @@ class Trainer(object):
         scheduler_type: str = "MultiStepLR",
         target_names: List[str] = ["y"],
         target_sizes: Optional[List[int]] = None,
+        cat_features_sizes: Optional[List[int]] = None,
         use_mlflow: bool = False,
         tqdm_disable=False,
         conv_type: Literal["NNConv", "GraphConv"] = "NNConv",
         metrics: Optional[float] = None,
         log_all_metrics: bool = True,
+        log_metric: bool = True,
+        embedding_data: bool = False,
         **model_params,
     ) -> None:
         """
@@ -130,8 +134,10 @@ class Trainer(object):
                 **model_params,
                 target_names=target_names,
                 target_sizes=target_sizes,
+                cat_features_sizes=cat_features_sizes,
                 groups_names=groups_names,
                 groups_names_num_features=groups_names_num_features,
+                groups_names_num_cat_features=groups_names_num_cat_features,
                 num_edge_features=num_edge_features,
             )
         elif conv_type == "GraphConv":
@@ -139,8 +145,10 @@ class Trainer(object):
                 **model_params,
                 target_names=target_names,
                 target_sizes=target_sizes,
+                cat_features_sizes=cat_features_sizes,
                 groups_names=groups_names,
                 groups_names_num_features=groups_names_num_features,
+                groups_names_num_cat_features=groups_names_num_cat_features,
                 num_edge_features=num_edge_features,
             )
         else:
@@ -169,9 +177,7 @@ class Trainer(object):
         self._test_metric_lst = []
         self._train_metric_lst = []
 
-    def train(
-        self, start_epoch: int = 0, end_epoch: Optional[int] = None
-    ) -> Dict[
+    def train(self, start_epoch: int = 0, end_epoch: Optional[int] = None) -> Dict[
         Literal[
             "best_loss", "global_calc_time", "train_loss", "test_metric", "train_metric"
         ],
@@ -227,21 +233,24 @@ class Trainer(object):
             if (epoch - 0) % self.eval_freq == 0:
                 # calc metrics
                 # test
-                logger.info("\nEpoch {:03d}: ".format(epoch))
-                test_metric = eval_epoch(
+                #                 logger.info("\nEpoch {:03d}: ".format(epoch))
+                test_metric, test_preds, indeces = eval_epoch(
                     self._model,
                     self.list_loader_test,
                     self.device,
                     self.target_names,
                     self.groups_names,
-                    postfix="test",
+                    postfix=f"epoch {epoch} test",
                     use_edge_attr=self._use_edge_attr,
                     tqdm_disable=self.tqdm_disable,
                     fill_value=self.fill_value,
                     metrics=self._metrics,
                     main_metric=self._main_metric,
                     log_all_metrics=self.log_all_metrics,
+                    log_metric=self.log_metric,
+                    embedding_data=self.embedding_data,
                 )
+                test_tasks = test_metric["tasks"]
                 self.mlflow_log_metrics(
                     metrics=add_prefix_to_dict_keys(test_metric, "test_"), step=epoch
                 )
@@ -254,20 +263,23 @@ class Trainer(object):
                     f.write("\n")
 
                 # train
-                logger.info("Epoch {:03d}: ".format(epoch))
-                train_metric = eval_epoch(
+                #                 logger.info("Epoch {:03d}: ".format(epoch))
+                train_metric, train_preds, indeces = eval_epoch(
                     self._model,
                     self.list_loader_train,
                     self.device,
                     self.target_names,
                     self.groups_names,
-                    postfix="train",
+                    postfix=f"epoch {epoch} train",
                     use_edge_attr=self._use_edge_attr,
                     tqdm_disable=self.tqdm_disable,
                     metrics=self._metrics,
                     main_metric=self._main_metric,
                     log_all_metrics=self.log_all_metrics,
+                    log_metric=self.log_metric,
+                    embedding_data=self.embedding_data,
                 )
+                train_tasks = train_metric["tasks"]
                 self.mlflow_log_metrics(
                     metrics=add_prefix_to_dict_keys(train_metric, "train_"), step=epoch
                 )
@@ -342,6 +354,10 @@ class Trainer(object):
             "train_loss": train_loss,
             "test_metric": test_metric,
             "train_metric": train_metric,
+            "train_preds": train_preds,
+            "test_preds": test_preds,
+            "train_tasks": train_tasks,
+            "test_tasks": test_tasks,
         }
 
     def mlflow_log_metrics(

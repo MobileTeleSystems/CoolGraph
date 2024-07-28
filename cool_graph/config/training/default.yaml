@@ -9,8 +9,8 @@ targets:
   - label_6
 # Number of neighbors are sampled for each node in each iteration (if set -1, -1 - sampling all)
 num_neighbors:
-  - -1
-  - -1
+  - 25
+  - 25
 # Numbers of samples per batch to load.
 batch_size: 250
 # learning rate 
