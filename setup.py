@@ -19,7 +19,9 @@ DEPENDENCIES = [
         'urllib3>=1.26.9',
         'hydra-core>=1.3.0',
         'protobuf==3.20.0',
-        'loguru==0.6.0' 
+        'loguru==0.6.0',
+        'optuna==3.6.1',
+        'ogb==1.3.6'
 ]
 
 
