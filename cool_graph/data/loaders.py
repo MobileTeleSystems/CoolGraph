@@ -76,8 +76,8 @@ def create_loaders(
         )
         input_nodes = torch.nonzero(label_mask)[:, 0]
         
-    if "index" not in data.keys():
-        data.index = torch.tensor(range(0, len(data.x)))
+    if not hasattr(data, "index"):
+        setattr(data, "index", torch.tensor(range(0, len(data.x))))
 
     loader = NeighborLoader(
         data,
