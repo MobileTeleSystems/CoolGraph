@@ -112,7 +112,7 @@ class Multitarget(Dataset):
         # Dealing with target
         df_train = pd.read_csv(osp.join(self.raw, 'labels.csv'))
 
-        df_y = df_train.pivot('index','label_type','y')
+        df_y = df_train.pivot(index='index',columns='label_type',values='y')
         df_y_ = pd.DataFrame(np.arange(len(x)) , columns=['index'])
         df_y = df_y_.merge(df_y.reset_index(), on='index',how='left').set_index('index')
         df_y['has_target'] = df_y.notnull().sum(axis=1) > 0
