@@ -1025,7 +1025,7 @@ class HypeRunner(BaseRunner):
             self.groups_names,
             postfix="predict",
             use_edge_attr=self.best_trainer._use_edge_attr,
-            tqdm_disable=False,
+            tqdm_disable=not self.verbose,
             fill_value=self.best_trainer.fill_value,
             count_metrics=False,
             log_all_metrics=False,
