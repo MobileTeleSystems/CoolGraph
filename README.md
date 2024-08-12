@@ -99,6 +99,8 @@ For more information look at Tutorials
 5. [Creating your own data loaders](/notebooks/Indices_for_DataLoader.ipynb)
 6. [Working with configs](/notebooks/How_to_work_with_configs.ipynb)
 7. [Benchmarks](/notebooks/benchmarks.ipynb)
+8. [Easy start on Google Colab](https://colab.research.google.com/drive/1fyjfK5pZTtAz5axZydFb59eIQdKrBbR8#scrollTo=Hj8b6FeRFCMY)
+9. [Usage Examples on Google Colab](https://colab.research.google.com/drive/168saYLMPRXc7BOELzVKG0049en4Rr3Jx#scrollTo=ceUEYgtWWcDF)
 
 ## Library Structure
 
