@@ -91,16 +91,14 @@ For more information look at Tutorials
 
 # Tutorials
 
-1. [Easy start](/notebooks/Easy_start.ipynb)
-2. [Main features](/notebooks/Usage_examples.ipynb)
+1. [Easy start](/notebooks/Easy_start.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1fyjfK5pZTtAz5axZydFb59eIQdKrBbR8)
+2. [Main features](/notebooks/Usage_examples.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/168saYLMPRXc7BOELzVKG0049en4Rr3Jx)
 3. [Making predictions and metric calculation](h/notebooks/predict_proba_examples.ipynb)
 4. [Working with categorical features](/notebooks/categorical_features_usage_examples.ipynb)
 5. [Working with graph features](/notebooks/graph_features_usage_examples.ipynb)
 5. [Creating your own data loaders](/notebooks/Indices_for_DataLoader.ipynb)
 6. [Working with configs](/notebooks/How_to_work_with_configs.ipynb)
 7. [Benchmarks](/notebooks/benchmarks.ipynb)
-8. [Easy start on Google Colab](https://colab.research.google.com/drive/1fyjfK5pZTtAz5axZydFb59eIQdKrBbR8#scrollTo=Hj8b6FeRFCMY)
-9. [Usage Examples on Google Colab](https://colab.research.google.com/drive/168saYLMPRXc7BOELzVKG0049en4Rr3Jx#scrollTo=ceUEYgtWWcDF)
 
 ## Library Structure
 
