@@ -21,16 +21,16 @@ All you need is graph-structured data.
  
 # Benchmarks
 
-Dataset                   | accuracy | ROC-AUC | SOTA accuracy | SOTA ROC-AUC
---------------------------|----------|---------|---------------|-------------
-**AntiFraud Amazon**      | 0.9828   | 0.9617  | -             | 0.9750
-**AntiFraud YelpChi**     | 0.9050   | 0.9176  | -             | 0.9498
-**Multitarget 10k**       | 0.8651   | 0.7415  | -             | -
-**Multitarget 50k**       | 0.8637   | 0.7973  | -             | -
-**Penn94**                | 0.7829   | 0.8714  | 0.8609        | -
-**Genius**                | 0.8405   | 0.9016  | 0.9145        | -
-**S_FFSD**                | 0.8961   | 0.8932  | -             | 0.8461
-**OgbnProteins**          | 0.8967   | 0.8058  | -             | 0.8942
+| *Dataset*            | *Main Metric* | *Train* | *Valid* | *Test*  | *Runner Score* | *HypeRunner Score* | *SOTA* | *Rank* |
+|----------------------|---------------|---------|---------|---------|----------------|--------------------|--------|--------|
+| **Amazon Computers** | accuracy      | 0.6     | 0.2     | 0.2     | 0.918          | 0.915              | 0.939  | 3      |
+| **Amazon Photo**     | accuracy      | 0.6     | 0.2     | 0.2     | 0.959          | 0.961              | 0.967  | 3      |
+| **Amzon-Fraud**      | roc-auc       | 0.4     | 0.2     | 0.4     | 0.956          | 0.960              | 0.975  | 4      |
+| **YelpChi**          | roc-auc       | 0.4     | 0.2     | 0.4    | 0.856           | 0.890              | 0.950  | 5      |
+| **Multitarget 10k**  | roc-auc       | 0.6     | 0.2     | 0.2    | 0.730           | 0.838              |        |        |
+| **Multitarget 50k**  | roc-auc       | 0.6     | 0.2     | 0.2    | 0.756           | 0.841              |        |        |
+| **Penn94**           | accuracy      | 0.6     | 0.2     | 0.2    | 0.791           | 0.829              | 0.861  | 12     |
+| **Genius**           | roc-auc       | 0.6     | 0.2     | 0.2    | 0.902           | 0.902              | 0.915  | 12     |
 
 
 # Installation
