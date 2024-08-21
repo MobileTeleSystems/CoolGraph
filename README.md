@@ -99,6 +99,7 @@ For more information look at Tutorials
 5. [Creating your own data loaders](/notebooks/Indices_for_DataLoader.ipynb)
 6. [Working with configs](/notebooks/How_to_work_with_configs.ipynb)
 7. [Benchmarks](/notebooks/benchmarks.ipynb)
+8. [Integration with Mlflow](/notebooks/Integration_with_mlflow.ipynb)
 
 ## Library Structure
 
