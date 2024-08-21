@@ -362,9 +362,6 @@ class BaseRunner:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        if self.cfg["logging"].get("use_mlflow", False):
-            setup_mlflow_from_config(cfg["logging"]["mlflow"])
-
     def sample_data(self) -> None:
         """
         Sampling data into batches and sampling data with NeighborLoader into list loaders.
@@ -521,7 +518,10 @@ class Runner(BaseRunner):
         """
         self.train_loader = train_loader
         self.test_loader = test_loader
-
+        
+        if self.cfg["logging"].get("use_mlflow", False):
+            setup_mlflow_from_config(self.cfg["logging"]["mlflow"])
+        
         if (self.train_loader is None) and (self.test_loader is None):
             self.sample_data()
         elif "index" not in self.data.keys:
@@ -800,7 +800,10 @@ class HypeRunner(BaseRunner):
         Returns:
             trials_dataset (pd.DataFrame): Result dataframe with trial params.
         """
-
+        
+        if self.cfg["logging"].get("use_mlflow", False):
+            setup_mlflow_from_config(self.cfg["logging"]["mlflow"])
+        
         self.train_loader = train_loader
         self.test_loader = test_loader
 

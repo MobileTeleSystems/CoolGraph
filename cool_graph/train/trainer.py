@@ -251,9 +251,10 @@ class Trainer(object):
                     embedding_data=self.embedding_data,
                 )
                 test_tasks = test_metric["tasks"]
-                self.mlflow_log_metrics(
-                    metrics=add_prefix_to_dict_keys(test_metric, "test_"), step=epoch
-                )
+                for task in test_tasks:
+                    self.mlflow_log_metrics(
+                        metrics=add_prefix_to_dict_keys(test_tasks[task], f"{task}_test_"), step=epoch
+                    )
                 test_metric["epoch"] = epoch
                 self._test_metric_lst.append(test_metric)
                 with open(
@@ -280,9 +281,10 @@ class Trainer(object):
                     embedding_data=self.embedding_data,
                 )
                 train_tasks = train_metric["tasks"]
-                self.mlflow_log_metrics(
-                    metrics=add_prefix_to_dict_keys(train_metric, "train_"), step=epoch
-                )
+                for task in train_tasks:
+                    self.mlflow_log_metrics(
+                        metrics=add_prefix_to_dict_keys(train_tasks[task], f"{task}_train_"), step=epoch
+                    )
                 train_metric["epoch"] = epoch
                 self._train_metric_lst.append(train_metric)
                 with open(
@@ -339,9 +341,10 @@ class Trainer(object):
         test_metric = pd.DataFrame(self._test_metric_lst)
         train_metric = pd.DataFrame(self._train_metric_lst)
 
-        self.mlflow_log_metrics(
-            metrics=add_prefix_to_dict_keys(self._best_loss, "best_")
-        )
+        for task in self._best_loss["tasks"]:  
+            self.mlflow_log_metrics(
+                metrics=add_prefix_to_dict_keys(self._best_loss["tasks"][task], f"{task}_best_")
+            )
         self.mlflow_log_metrics({"global_calc_time": self.global_calc_time})
 
         if self.use_mlflow:
