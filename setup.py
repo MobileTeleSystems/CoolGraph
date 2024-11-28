@@ -7,7 +7,7 @@ NAME = 'cool_graph'
 DESCRIPTION = 'Python library for building Graph Neural Network by few steps'
 LONG_DESCRIPTION = 'Python library for building Graph Neural Network by few steps, preproccesing graph data, logging all experiments with Mlflow. Including the default configuration for multitarget learning with up to 2 groups of node types'
 LICENSE = 'MIT'
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 
 DEPENDENCIES = [
         'mlflow>=2.1.1',
