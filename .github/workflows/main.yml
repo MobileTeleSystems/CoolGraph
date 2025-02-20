@@ -21,19 +21,21 @@ jobs:
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
-        auto-activate-base: false
-        environment-file: environment.yml
+        auto-activate-base: true  # This automatically configures the shell for Conda
         python-version: 3.8
 
-    - name: Install dependencies
+    - name: 
+      shell: bash -l {0}  
       run: |
-        conda env update --file environment.yml --name cool-graph-env
+        conda env create --file environment.yml --name cool-graph-env
         conda activate cool-graph-env
+        conda info  
 
     - name: Run tests
+      shell: bash -l {0}
       run: |
+        conda activate cool-graph-env
         pytest
-      continue-on-error: true
 
   release:
     runs-on: ubuntu-latest
@@ -46,22 +48,22 @@ jobs:
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
-        auto-activate-base: false
-        environment-file: environment.yml
+        auto-activate-base: true
         python-version: 3.8
 
-    - name: Install build dependencies
+    - name: Create environment for release
+      shell: bash -l {0}
       run: |
-        conda env update --file environment.yml --name cool-graph-env
+        conda env create --file environment.yml --name cool-graph-env
         conda activate cool-graph-env
+        conda info
 
-    - name: Build package
-      run: |
-        python setup.py sdist bdist_wheel
-
-    - name: Publish to PyPI
+    - name: Build and publish package
+      shell: bash -l {0}
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
+        conda activate cool-graph-env
+        python setup.py sdist bdist_wheel
         python -m twine upload dist/*
