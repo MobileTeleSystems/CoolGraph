@@ -1,11 +1,14 @@
-name: Publish to PyPI
+name: CI/CD for Cool-Graph
 
 on:
+  push:
+    branches:
+      - main
   release:
     types: [published]
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
 
     steps:
