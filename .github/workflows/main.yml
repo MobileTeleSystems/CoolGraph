@@ -10,26 +10,24 @@ jobs:
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
         auto-activate-base: false
         python-version: 3.8
+        environment-file: environment.yml
+        activate-environment: cool-graph-env
 
-    - name: Create and activate Conda environment
-      shell: bash -l {0}
+    - name: Install build tools and dependencies
       run: |
-        conda env create --file environment.yml --name cool-graph-env
         source $(conda info --base)/etc/profile.d/conda.sh
         conda activate cool-graph-env
-        # Upgrade pip and install build and twine
         python -m pip install --upgrade pip setuptools wheel
         python -m pip install build twine
 
     - name: Build and publish package
-      shell: bash -l {0}
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -37,4 +35,4 @@ jobs:
         source $(conda info --base)/etc/profile.d/conda.sh
         conda activate cool-graph-env
         python -m build
-        python -m twine upload dist/*
+        python -m twine upload dist/* --verbose
