@@ -1,33 +1,61 @@
-name: Publish to PyPI
+name: CI/CD for Cool-Graph
 
 on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
   release:
     types: [published]
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
 
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
         auto-activate-base: false
         python-version: 3.8
-        environment-file: environment.yml
-        activate-environment: cool-graph-env
 
-    - name: Install build tools and dependencies
+    - name: Create and activate environment
+      shell: bash -l {0}
       run: |
-        source $(conda info --base)/etc/profile.d/conda.sh
-        conda activate cool-graph-env
-        python -m pip install --upgrade pip setuptools wheel
-        python -m pip install build twine
+        conda env create --file environment.yml --name cool-graph-env
+        echo "Environment created"
+        echo "source $(conda info --base)/etc/profile.d/conda.sh" >> $GITHUB_ENV
+        echo "conda activate cool-graph-env" >> $GITHUB_ENV
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-activate-base: false
+        python-version: 3.8
+
+    - name: Create and activate environment
+      shell: bash -l {0}
+      run: |
+        conda env create --file environment.yml --name cool-graph-env
+        echo "Environment created"
+        echo "source $(conda info --base)/etc/profile.d/conda.sh" >> $GITHUB_ENV
+        echo "conda activate cool-graph-env" >> $GITHUB_ENV
 
     - name: Build and publish package
+      shell: bash -l {0}
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -35,4 +63,4 @@ jobs:
         source $(conda info --base)/etc/profile.d/conda.sh
         conda activate cool-graph-env
         python -m build
-        python -m twine upload dist/* --verbose
+        python -m twine upload dist/*
