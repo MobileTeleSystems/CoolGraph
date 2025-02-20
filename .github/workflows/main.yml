@@ -24,6 +24,7 @@ jobs:
         conda env create --file environment.yml --name cool-graph-env
         source $(conda info --base)/etc/profile.d/conda.sh
         conda activate cool-graph-env
+        # Upgrade pip and install build and twine
         python -m pip install --upgrade pip setuptools wheel
         python -m pip install build twine
 
