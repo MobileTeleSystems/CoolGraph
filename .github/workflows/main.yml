@@ -1,9 +1,6 @@
-name: CI/CD for Cool-Graph
+name: Publish to PyPI
 
 on:
-  push:
-    branches:
-      - main 
   release:
     types: [published]
 
@@ -15,27 +12,21 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v3
 
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v2
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        auto-activate-base: false
-        python-version: 3.8
-        environment-file: environment.yml
-        activate-environment: cool-graph-env
+        python-version: '3.8'
 
-    - name: Install build tools and dependencies
+    - name: Install build dependencies
       run: |
-        source $(conda info --base)/etc/profile.d/conda.sh
-        conda activate cool-graph-env
-        python -m pip install --upgrade pip setuptools wheel
-        python -m pip install build twine
+        python -m pip install --upgrade pip
+        python -m pip install build
 
-    - name: Build and publish package
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+    - name: Build package
       run: |
-        source $(conda info --base)/etc/profile.d/conda.sh
-        conda activate cool-graph-env
         python -m build
-        python -m twine upload --repository-url https://pypi.org/project/cool-graph/ dist/*
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
