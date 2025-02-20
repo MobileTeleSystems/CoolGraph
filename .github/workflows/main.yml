@@ -28,9 +28,10 @@ jobs:
       shell: bash -l {0}
       run: |
         conda env create --file environment.yml --name cool-graph-env
-        conda activate cool-graph-env
-        # Ensure recent versions of pip and setuptools
-        python -m pip install --upgrade pip setuptools wheel twine
+        source activate cool-graph-env
+        # Ensure recent versions of pip, setuptools, and install build and twine
+        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install build twine
 
   release:
     runs-on: ubuntu-latest
@@ -50,8 +51,10 @@ jobs:
       shell: bash -l {0}
       run: |
         conda env create --file environment.yml --name cool-graph-env
-        conda activate cool-graph-env
-        python -m pip install --upgrade pip setuptools wheel twine
+        source activate cool-graph-env
+        # Ensure recent versions of pip, setuptools, and install build and twine
+        python -m pip install --upgrade pip setuptools wheel
+        python -m pip install build twine
 
     - name: Build and publish package
       shell: bash -l {0}
@@ -59,6 +62,6 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        conda activate cool-graph-env
+        source activate cool-graph-env
         python -m build
         python -m twine upload dist/*
