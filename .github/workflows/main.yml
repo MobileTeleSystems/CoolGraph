@@ -21,14 +21,16 @@ jobs:
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
-        auto-activate-base: true 
+        auto-activate-base: true
         python-version: 3.8
 
-    - name: Create Conda environment
+    - name: Create and activate environment
       shell: bash -l {0}
       run: |
         conda env create --file environment.yml --name cool-graph-env
         conda activate cool-graph-env
+        # Ensure recent versions of pip and setuptools
+        python -m pip install --upgrade pip setuptools wheel twine
 
   release:
     runs-on: ubuntu-latest
@@ -44,11 +46,12 @@ jobs:
         auto-activate-base: true
         python-version: 3.8
 
-    - name: Create Conda environment
+    - name: Create and activate environment
       shell: bash -l {0}
       run: |
         conda env create --file environment.yml --name cool-graph-env
         conda activate cool-graph-env
+        python -m pip install --upgrade pip setuptools wheel twine
 
     - name: Build and publish package
       shell: bash -l {0}
@@ -57,5 +60,5 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         conda activate cool-graph-env
-        python setup.py sdist bdist_wheel
+        python -m build
         python -m twine upload dist/*
