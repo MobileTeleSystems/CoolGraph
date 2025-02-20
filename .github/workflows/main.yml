@@ -1,17 +1,11 @@
-name: CI/CD for Cool-Graph
+name: Publish to PyPI
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   release:
     types: [published]
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,38 +15,15 @@ jobs:
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
-        auto-activate-base: true
+        auto-activate-base: false
         python-version: 3.8
 
-    - name: Create and activate environment
+    - name: Create and activate Conda environment
       shell: bash -l {0}
       run: |
         conda env create --file environment.yml --name cool-graph-env
-        source activate cool-graph-env
-        # Ensure recent versions of pip, setuptools, and install build and twine
-        python -m pip install --upgrade pip setuptools wheel
-        python -m pip install build twine
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v2
-
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        auto-activate-base: true
-        python-version: 3.8
-
-    - name: Create and activate environment
-      shell: bash -l {0}
-      run: |
-        conda env create --file environment.yml --name cool-graph-env
-        source activate cool-graph-env
-        # Ensure recent versions of pip, setuptools, and install build and twine
+        source $(conda info --base)/etc/profile.d/conda.sh
+        conda activate cool-graph-env
         python -m pip install --upgrade pip setuptools wheel
         python -m pip install build twine
 
@@ -62,6 +33,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        source activate cool-graph-env
+        source $(conda info --base)/etc/profile.d/conda.sh
+        conda activate cool-graph-env
         python -m build
         python -m twine upload dist/*
