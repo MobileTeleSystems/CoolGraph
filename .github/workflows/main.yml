@@ -3,10 +3,10 @@ name: CI/CD for Cool-Graph
 on:
   push:
     branches:
-      - develop
+      - main
   pull_request:
     branches:
-      - develop
+      - main
   release:
     types: [published]
 
