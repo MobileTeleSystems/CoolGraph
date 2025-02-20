@@ -38,4 +38,4 @@ jobs:
         source $(conda info --base)/etc/profile.d/conda.sh
         conda activate cool-graph-env
         python -m build
-        python -m twine upload dist/* --verbose
+        python -m twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
